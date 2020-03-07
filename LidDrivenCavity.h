@@ -19,21 +19,41 @@ public:
     void SetFinalTime(double finalt);
     void SetReynoldsNumber(double re);
     void Setmeshsize(double lx, double ly, int nx, int ny);
-    void Initialise(int sizeNx, int sizeNy);
+    void Initialise();
 
     // void Initialise_top_boundary(int sizeNx, int sizeNy, double deltay);
     void CalculateVorticityBC();
     void CalculateInteriorVorticityAtTimet();
-    void BuildMatrixA(int Nx, int Ny);
-    // void vortivityattimet();
+    void BuildMatrixA_B_C();
+    void TimeAdvance();
+    void PoissonSolver();
+    double Error();
+    void WriteToFile();
+
+    void test_debug();
+
     void Integrate();
 
     // Add any other public functions
+    // There should be another function to calculate s_bc sended by another core
 
 private:
-    double* v = nullptr;      //array of vorticity
-    double* s = nullptr;      //array of stream function
+    double* v_in = nullptr;      //array of interior vorticity
+    double* v_bcL = nullptr;      //array of boundary vorticity
+    double* v_bcR = nullptr;
+    double* v_bcT = nullptr;
+    double* v_bcB = nullptr;
+    double* s_in = nullptr;      //array of interior stream function
+    double* s_in_error = new double[(Nx-2)*(Ny-2)];
+    double* s_bcT = nullptr;      //array of boundary stream function
+    double* s_bcB = nullptr;
+    double* s_bcL = nullptr;      //array of boundary stream function
+    double* s_bcR = nullptr;
     double* A = nullptr;      //matrix(array) of linear system Ax = y
+    double* A_v = nullptr;
+    double* B = nullptr;      //matrix(array) for time advance
+    double* C = nullptr;      //matrix(array) for time advance
+
 
     double dt;
     double T;
