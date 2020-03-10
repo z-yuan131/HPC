@@ -5,7 +5,7 @@ using namespace std;
 #include <algorithm>    // std::max
 #include <math.h>       /* fabs sqrt*/
 #include <boost/program_options.hpp>
-// #include <mpi.h>
+#include <mpi.h>
 namespace po = boost::program_options;
 #include "LidDrivenCavity.h"
 #include "cblas.h"
@@ -50,7 +50,8 @@ extern "C"{
 
 LidDrivenCavity::LidDrivenCavity(double Lx, double Ly, int Nx, int Ny, int Px, int Py, double dt, double T, double Re)
 {
-  // cout << Lx << Ly << Nx << Ny << Px << Py << dt << T <<Re << endl;
+  cout << Lx << ","<< Ly << ","<< Nx << ","<< Ny<< "," << Px<< "," << Py<< "," << dt<< "," << T<< "," <<Re <<endl;
+
 }
 
 LidDrivenCavity::LidDrivenCavity()
@@ -97,10 +98,18 @@ void LidDrivenCavity::Setmeshsize(double lx, double ly, int nx, int ny)
   dy = ly/(ny-1);
 }
 
+void LidDrivenCavity::SetPxPy(int Px, int Py){
+  Px = Px;
+  Py = Py;
+}
+
+void LidDrivenCavity::SetSubdomainGrids(int Nx, int Ny){
+  dNx = (Nx-2) / Px;
+  dNy = (Ny-2) / Py;
+}
+
 void LidDrivenCavity::Initialise()
 {
-    int dNy = Ny-2;
-    int dNx = Nx-2;
     double* phi = new double[dNx*dNy];
     double* omega = new double[dNx*dNy];
     for (int j = 0 ; j < dNy ; j++){
@@ -187,10 +196,8 @@ void LidDrivenCavity::Integrate()
 }
 
 
-void LidDrivenCavity::CalculateVorticityBC()
+void LidDrivenCavity::CalculateVorticityBC(int TopBC)
 {//from equations (6)(7)(8)(9)
-   int dNy = Ny - 2;
-   int dNx = Nx - 2;
    double* tempL = new double[dNy];
    double* tempR = new double[dNy];
    double* tempB = new double[dNx];
@@ -207,7 +214,7 @@ void LidDrivenCavity::CalculateVorticityBC()
            tempB[i] = (s_bcB[i] - s_in[0 + dNy*i])*2.0/dy/dy;
        }
        if (j == dNy-1){               //top
-           tempT[i] = (s_bcT[i] - s_in[dNy-1 + dNy*i])*2.0/dy/dy - 2*1.0/dy; //U = 1.0
+           tempT[i] = (s_bcT[i] - s_in[dNy-1 + dNy*i])*2.0/dy/dy - TopBC*2*1.0/dy; //U = 1.0
        }
      }
    }
@@ -216,9 +223,9 @@ void LidDrivenCavity::CalculateVorticityBC()
  v_bcB = tempB;
  v_bcT = tempT;
 
-       // for (int i = 0 ; i < dNx ; i++){
-       //     cout << v_bcT[i] << "T  ";
-       //   }cout << endl;
+       for (int i = 0 ; i < dNx ; i++){
+           cout << v_bcT[i] << "T  ";
+         }cout << endl;
        // for (int i = 0 ; i < dNx ; i++){
        //     cout << v_bcB[i] << "B  ";
        //   }cout << endl;
@@ -235,8 +242,6 @@ void LidDrivenCavity::CalculateVorticityBC()
 
 void LidDrivenCavity::BuildMatrixA_B_C()    //dNx: points of interior domain.
 {
-    int dNx = Nx-2;
-    int dNy = Ny-2;
     int n = dNx*dNy;    //matrix A size
     int kl = dNy;    //Lower diagonal bandwidth
     int ku = dNy;    //Upper diagonal bandwidth
@@ -379,8 +384,6 @@ void LidDrivenCavity::BuildMatrixA_B_C()    //dNx: points of interior domain.
 
 void LidDrivenCavity::CalculateInteriorVorticityAtTimet()
 {//from equation (10)
-    int dNx = Nx-2;
-    int dNy = Ny-2;
     int kl = dNy;    //Lower diagonal bandwidth
     int ku = dNy;    //Upper diagonal bandwidth
     int n = dNx*dNy;    //matrix A size
@@ -470,8 +473,6 @@ void LidDrivenCavity::CalculateInteriorVorticityAtTimet()
 
 
 void LidDrivenCavity::TimeAdvance(){
-    int dNx = Nx - 2;
-    int dNy = Ny - 2;
     int n = dNx*dNy;    //matrix A size
     int kl = dNy;    //Lower diagonal bandwidth
     int ku = dNy;    //Upper diagonal bandwidth
@@ -594,8 +595,6 @@ void LidDrivenCavity::TimeAdvance(){
 
 
 void LidDrivenCavity::PoissonSolver(){
-    int dNx = Nx - 2;
-    int dNy = Ny - 2;
     int n = dNx*dNy;    //matrix A size
     int kl = dNy;    //Lower diagonal bandwidth
     int ku = dNy;    //Upper diagonal bandwidth
@@ -700,7 +699,7 @@ double LidDrivenCavity::Error(){
   double er;
   double norm1;
   double norm2;
-  for (int  i = 0 ; i < (Nx-2)*(Ny-2) ; i++){
+  for (int  i = 0 ; i < dNx*dNy ; i++){
     norm1 += s_in_error[i]*s_in_error[i];
     norm2 += s_in[i]*s_in[i];
   }
@@ -712,8 +711,6 @@ double LidDrivenCavity::Error(){
 
 
 void LidDrivenCavity::WriteToFile(){
-  int dNx = Nx - 2;
-  int dNy = Ny - 2;
   ofstream vorticityfile;
   vorticityfile.open ("vorticity.txt");
   // vorticityfile << "x   y   vorticity.\n";
@@ -734,6 +731,85 @@ void LidDrivenCavity::WriteToFile(){
   }
   streamFunctiom.close();
 }
+
+
+void LidDrivenCavity::mpisend(int x, int y, MPI_Comm comm_cart){
+  double* inT_sent = new double[dNx];
+  double* inB_sent = new double[dNx];
+  double* inL_sent = new double[dNy];
+  double* inR_sent = new double[dNy];
+  for (int j = 0 ; j < dNy ; j++){
+    for (int i = 0 ; i < dNx ; i++){
+      if (i == 0){inL_sent[j] = s_in[j + dNy*i];}
+      if (i == dNx-1){inR_sent[j] = s_in[j + dNy*i];}
+      if (j == 0){inB_sent[i] = s_in[j + dNy*i];}
+      if (j == dNy-1){inT_sent[i] = s_in[j + dNy*i];}
+    }
+  }
+  if (x == 0){
+    if (y == 0){
+      MPI_Send(&inR_sent, dNy, MPI_DOUBLE, x+1, 1, comm_cart);
+      MPI_Send(&inT_sent, dNx, MPI_DOUBLE, y+1, 1, comm_cart);
+      // MPI_Recv(&s_bcR, dNy, MPI_DOUBLE, x+1, 1, comm_cart, MPI_STATUS_IGNORE);
+      // MPI_Recv(&s_bcT, dNx, MPI_DOUBLE, y+1, 1, comm_cart, MPI_STATUS_IGNORE);
+    }
+    else if (y == Py - 1){
+      MPI_Send(&inR_sent, dNy, MPI_DOUBLE, x+1, 1, comm_cart);
+      MPI_Send(&inB_sent, dNx, MPI_DOUBLE, y-1, 1, comm_cart);
+      // MPI_Recv(&s_bcR, dNy, MPI_DOUBLE, x+1, 1, comm_cart, MPI_STATUS_IGNORE);
+      // MPI_Recv(&s_bcB, dNx, MPI_DOUBLE, y-1, 1, comm_cart, MPI_STATUS_IGNORE);
+    }
+    else{
+      MPI_Send(&inR_sent, dNy, MPI_DOUBLE, x+1, 1, comm_cart);
+      // MPI_Recv(&s_bcR, dNy, MPI_DOUBLE, x+1, 1, comm_cart, MPI_STATUS_IGNORE);
+    }
+  }
+  else if (x == Px - 1){
+    if (y == 0){
+      MPI_Send(&inL_sent, dNy, MPI_DOUBLE, x-1, 1, comm_cart);
+      MPI_Send(&inT_sent, dNx, MPI_DOUBLE, y+1, 1, comm_cart);
+      // MPI_Recv(&s_bcL, dNy, MPI_DOUBLE, x-1, 1, comm_cart, MPI_STATUS_IGNORE);
+      // MPI_Recv(&s_bcT, dNx, MPI_DOUBLE, y+1, 1, comm_cart, MPI_STATUS_IGNORE);
+    }
+    else if (y == Py - 1){
+      MPI_Send(&inL_sent, dNy, MPI_DOUBLE, x-1, 1, comm_cart);
+      MPI_Send(&inB_sent, dNx, MPI_DOUBLE, y-1, 1, comm_cart);
+      // MPI_Recv(&s_bcL, dNy, MPI_DOUBLE, x-1, 1, comm_cart, MPI_STATUS_IGNORE);
+      // MPI_Recv(&s_bcB, dNx, MPI_DOUBLE, y-1, 1, comm_cart, MPI_STATUS_IGNORE);
+    }
+    else{
+      MPI_Send(&inL_sent, dNy, MPI_DOUBLE, x-1, 1, comm_cart);
+      // MPI_Recv(&s_bcL, dNy, MPI_DOUBLE, x-1, 1, comm_cart, MPI_STATUS_IGNORE);
+    }
+  }
+  else if(y == 0){
+      MPI_Send(&inT_sent, dNx, MPI_DOUBLE, y+1, 1, comm_cart);
+      // MPI_Recv(&s_bcT, dNx, MPI_DOUBLE, y+1, 1, comm_cart, MPI_STATUS_IGNORE);
+  }
+  else if(y == Py - 1){
+      MPI_Send(&inB_sent, dNx, MPI_DOUBLE, y-1, 1, comm_cart);
+      // MPI_Recv(&s_bcB, dNx, MPI_DOUBLE, y-1, 1, comm_cart, MPI_STATUS_IGNORE);
+  }
+  else{
+      MPI_Send(&inR_sent, dNy, MPI_DOUBLE, x+1, 1, comm_cart);
+      MPI_Send(&inT_sent, dNx, MPI_DOUBLE, y+1, 1, comm_cart);
+      MPI_Send(&inL_sent, dNy, MPI_DOUBLE, x-1, 1, comm_cart);
+      MPI_Send(&inB_sent, dNx, MPI_DOUBLE, y-1, 1, comm_cart);
+      // MPI_Recv(&s_bcR, dNy, MPI_DOUBLE, x+1, 1, comm_cart, MPI_STATUS_IGNORE);
+      // MPI_Recv(&s_bcT, dNx, MPI_DOUBLE, y+1, 1, comm_cart, MPI_STATUS_IGNORE);
+      // MPI_Recv(&s_bcL, dNy, MPI_DOUBLE, x-1, 1, comm_cart, MPI_STATUS_IGNORE);
+      // MPI_Recv(&s_bcB, dNx, MPI_DOUBLE, y-1, 1, comm_cart, MPI_STATUS_IGNORE);
+  }
+
+
+
+
+}
+
+void LidDrivenCavity::mpirecive(){
+
+}
+
 
 /*
 
@@ -770,8 +846,11 @@ void LidDrivenCavity::test_debug(){
 int main(int argc, char **argv)
 {
   //initialization
-  int Nx = 20,Ny = 20,Px = 1,Py = 1;
-  double Lx = 1.0,Ly = 1.0,dt = 0.0001,T = 10000*dt,Re = 1000.0;
+  int Nx = 12,Ny = 12,Px = 2,Py = 1;
+  double Lx = 1.0,Ly = 1.0,dt = 0.01;
+  double T;
+  double Re = 1000.0;
+  T = 2*dt;
   // double dx=2, dy=2;
 
 
@@ -868,39 +947,7 @@ int k = 0;
   */
 
 
-// LidDrivenCavity LidDrivenCavity();
-LidDrivenCavity*  shiyu_solver= new LidDrivenCavity(Lx,Ly,Nx,Ny,Px,Py,dt,T,Re);
-shiyu_solver->SetDomainSize(Lx,Ly);
-shiyu_solver->SetGridSize(Nx,Ny);
-shiyu_solver->Setmeshsize(Lx, Ly, Nx, Ny);
-shiyu_solver->SetFinalTime(T);
-shiyu_solver->SetTimeStep(dt);
-shiyu_solver->SetReynoldsNumber(Re);
-shiyu_solver->Initialise();
-shiyu_solver->BuildMatrixA_B_C();
-// shiyu_solver->Initialise_top_boundary(Nx, Ny, Ly);
 
-// int* i = new int[1];
-int i;
-double* error = new double[1];
-i = 0;
-error[0] = 0.0000001;
-do{
-  cout << "Time: t = " << i*dt << "\nstep = "<< i << endl;
-  shiyu_solver->CalculateVorticityBC();
-  shiyu_solver->CalculateInteriorVorticityAtTimet();
-  shiyu_solver->TimeAdvance();
-  // shiyu_solver->test_debug();
-
-  shiyu_solver->PoissonSolver();
-  cout << "norm = "<< shiyu_solver->Error() << endl << endl;
-  i++;
-}while(dt*i < T && shiyu_solver->Error() > error[0]);
-//
-// delete[] i;
-delete[] error;
-
-shiyu_solver->WriteToFile();
 
 
 // cout << dx<<dy<< endl;
@@ -916,31 +963,131 @@ shiyu_solver->WriteToFile();
 
 
 
-/*
-// Initialize the MPI environment
-    MPI_Init(NULL, NULL);
 
-    // Get the number of processes
-    int world_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    // Initialize the MPI environment
+    int err = MPI_Init(&argc, &argv);
+    if (err != MPI_SUCCESS) {
+        cout << "Failed to initialise MPI" << endl;
+        return -1;
+    }
+
+    // // Get the number of processes
+    // int world_size;
+    // MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    //
+    // // Get the rank of the process
+    // int world_rank;
+    // MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    //
+    // // Get the name of the processor
+    // char processor_name[MPI_MAX_PROCESSOR_NAME];
+    // int name_len;
+    // MPI_Get_processor_name(processor_name, &name_len);
+    //
+    // cout << world_size << endl;
+
+
+    //A Cartesian grid topology is created
+    int ndims = 2;                //dimensions
+    int dims[ndims] = {Px, Py};   //processors in each direction
+    int periods[ndims] = {0, 0};  //periodic(=1) or not(=0)
+    int reorder = 1;              //allow to reorder(=1)
+    MPI_Comm comm_cart;           //comm_cart is communicator with new cartesian topology (handle)
+    MPI_Cart_create(MPI_COMM_WORLD, ndims, dims, periods, reorder, &comm_cart);
+
+    int cart_size;
+    MPI_Comm_size(comm_cart, &cart_size);
 
     // Get the rank of the process
-    int world_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    int cart_rank;
+    MPI_Comm_rank(comm_cart, &cart_rank);
 
-    // Get the name of the processor
-    char processor_name[MPI_MAX_PROCESSOR_NAME];
-    int name_len;
-    MPI_Get_processor_name(processor_name, &name_len);
+    //the coordinates of a process
+    int coords[ndims];
+    MPI_Cart_coords(comm_cart, cart_rank, cart_size, coords);
+    cout << "cart_rank: " << cart_rank
+         << " coords: (" << coords[0] <<","<< coords[1] << ")"<< endl;
+    int TopBC;
+    if (coords[1] == 0){
+      TopBC = 1;
+    }
+    else{
+      TopBC = 0;
+    }
 
-    // Print off a hello world message
-    cout << "Hello world from processor " << processor_name
-         << "rank " << world_rank << "out of " << world_size
-         << " processors\n" << endl;
+
+    // int disp = -1;
+    // int *rank_source; int *rank_dest;
+    // MPI_Cart_shift(comm_cart, ndims, disp, rank_source, rank_dest);
+
+    // MPI_Comm subgrid;
+    // const int remain_dims[];
+    // MPI_Cart_sub(comm_cart, remain_dims, subgrid);
+
+
+     // remind if Nx % Px problems!!!!!!!!!!
+     // if (Nx % Px){
+     //    Nx =
+     // }
+
+     Nx = (Nx-2) / Px;
+     Ny = (Ny-2) / Py;
+
+
+
+
+
+    // LidDrivenCavity LidDrivenCavity();
+    LidDrivenCavity* shiyu_solver= new LidDrivenCavity(Lx,Ly,Nx,Ny,Px,Py,dt,T,Re);
+    // LidDrivenCavity* shiyu_solver= new LidDrivenCavity();
+
+    // shiyu_solver->SetDomainSize(Lx,Ly);
+    // shiyu_solver->SetGridSize(Nx,Ny);
+    // shiyu_solver->Setmeshsize(Lx, Ly, Nx, Ny);
+    // shiyu_solver->SetFinalTime(T);
+    // shiyu_solver->SetTimeStep(dt);
+    // shiyu_solver->SetReynoldsNumber(Re);
+    // shiyu_solver->SetPxPy(Px,Py);
+    // // shiyu_solver->SetSubdomainGrids(Nx,Ny);
+    // shiyu_solver->Initialise();
+    // shiyu_solver->BuildMatrixA_B_C();
+    // // shiyu_solver->Initialise_top_boundary(Nx, Ny, Ly);
+
+    //
+    // int i = 0;
+    // double* error = new double[1];
+    // error[0] = 0.0000001;
+    // do{
+    //
+    //   // cout << "From processor " << processor_name
+    //   //      << " rank " << world_rank << " Nx = "<< Nx << endl;
+    //   //
+    //   // cout << "Time: t = " << i*dt << "\nstep = "<< i << endl;
+    //   shiyu_solver->CalculateVorticityBC(TopBC);
+    //   shiyu_solver->CalculateInteriorVorticityAtTimet();
+    //   shiyu_solver->TimeAdvance();
+    //   // shiyu_solver->test_debug();
+    //
+    //   shiyu_solver->PoissonSolver();
+    //
+    //   // shiyu_solver->mpisend(coords[0],coords[1],comm_cart);
+    //
+    //
+    //   // cout << "From processor " << processor_name
+    //   cout << "rank " << cart_rank << " Nx = "<< Nx
+    //        << "\nTime: t = " << i*dt << "\nstep = "<< i
+    //        << "\nnorm = "<< shiyu_solver->Error() << endl << endl;
+    //   i++;
+    // }while(dt*i < T && shiyu_solver->Error() > error[0]);
+    //
+    // delete[] error;
+
+    // shiyu_solver->WriteToFile();
+
 
     // Finalize the MPI environment.
     MPI_Finalize();
-*/
+
 
 
 

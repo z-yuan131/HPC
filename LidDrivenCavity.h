@@ -12,23 +12,27 @@ public:
     LidDrivenCavity(double Lx, double Ly, int Nx, int Ny, int Px, int Py, double dt, double T, double Re);
     // ~LidDrivenCavity();   //deconsturct constructor
 
-
+    void SetSubdomainGrids(int Nx, int Ny);
     void SetDomainSize(double xlen, double ylen);
     void SetGridSize(int nx, int ny);
     void SetTimeStep(double deltat);
     void SetFinalTime(double finalt);
     void SetReynoldsNumber(double re);
     void Setmeshsize(double lx, double ly, int nx, int ny);
+    void SetPxPy(int Px, int Py);
     void Initialise();
 
-    // void Initialise_top_boundary(int sizeNx, int sizeNy, double deltay);
-    void CalculateVorticityBC();
+    // void Initialise_top_boundary();
+    void CalculateVorticityBC(int TopBC);
     void CalculateInteriorVorticityAtTimet();
     void BuildMatrixA_B_C();
     void TimeAdvance();
     void PoissonSolver();
     double Error();
     void WriteToFile();
+
+    void mpisend(int x, int y, MPI_Comm comm_cart);
+    void mpirecive();
 
     void test_debug();
 
@@ -54,11 +58,17 @@ private:
     double* B = nullptr;      //matrix(array) for time advance
     double* C = nullptr;      //matrix(array) for time advance
 
+    // int* coords = nullptr;    //vector for topology
+
 
     double dt;
     double T;
     int    Nx;
     int    Ny;
+    int    dNx;
+    int    dNy;
+    int    Px;
+    int    Py;
     double Lx;
     double Ly;
     double Re;
