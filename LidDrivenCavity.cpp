@@ -1,5 +1,5 @@
  #include "LidDrivenCavity.h"
- #include "PoissonSolver.h"
+ // #include "PoissonSolver.h"
  using namespace std;
  #include <iostream>
  #include <string>
@@ -7,7 +7,7 @@
  #include <algorithm>    // std::max
  #include <math.h>       /* fabs sqrt*/
  #include <boost/program_options.hpp>
- // #include <mpi.h>
+ #include <mpi.h>
  // namespace po = boost::program_options;
 
  // #include "cblas.h"
@@ -102,14 +102,16 @@
    dy = ly/(ny-1);
  }
 
- void LidDrivenCavity::SetPxPy(int Px, int Py){
-   Px = Px;
-   Py = Py;
+ void LidDrivenCavity::SetPxPy(int px, int py){
+   Px = px;
+   Py = py;
  }
 
  void LidDrivenCavity::SetSubdomainGrids(int Nx, int Ny){
-   dNx = (Nx-2) ;
-   dNy = (Ny-2) ;
+   // if (dNx % Px){
+     dNx = (Nx-2) / Px;
+     dNy = (Ny-2) / Py;
+   // }
  }
 
  void LidDrivenCavity::Initialise()
@@ -394,8 +396,6 @@
 
  void LidDrivenCavity::CalculateInteriorVorticityAtTimet()
  {//from equation (10)
-     // int dNx = Nx-2;
-     // int dNy = Ny-2;
      int kl = dNy;    //Lower diagonal bandwidth
      int ku = dNy;    //Upper diagonal bandwidth
      int n = dNx*dNy;    //matrix A size
@@ -661,10 +661,12 @@
         }
       }
 
-
-      for (int i = 0 ; i < n ; i++){
-        s_in_error[i] = s_in[i];
-      }
+      // double* error_temp = new double[dNx*dNy];
+      // for (int i = 0 ; i < n ; i++){
+      //   error_temp[i] = s_in[i];
+      // }
+      // s_in_error = error_temp;
+      s_in_error = s_in;
 
       // cout << "Poisson solver:AB" << endl;
       // for (int j = 0 ; j < ldab ; j++){
@@ -687,7 +689,7 @@
 
 
       F77Name(dgbsv)(n, kl, ku, nrhs, AB, ldab, ipiv, temp, n, info); //v is input and output
-      cout << "info = " << info << endl;
+      // cout << "info = " << info << endl;
       s_in = temp;
 
 
@@ -781,3 +783,229 @@
    cout << endl;
  }
  */
+
+
+ void LidDrivenCavity::mpiSendRecive_streamf(int xs, int xd, int ys, int yd, MPI_Comm comm_cart){
+   double* inT_sent = new double[dNx];
+   double* inB_sent = new double[dNx];
+   double* inL_sent = new double[dNy];
+   double* inR_sent = new double[dNy];
+   for (int j = 0 ; j < dNy ; j++){
+     for (int i = 0 ; i < dNx ; i++){
+       if (i == 0){inL_sent[j] = s_in[j + dNy*i];}
+       if (i == dNx-1){inR_sent[j] = s_in[j + dNy*i];}
+       if (j == 0){inB_sent[i] = s_in[j + dNy*i];}
+       if (j == dNy-1){inT_sent[i] = s_in[j + dNy*i];}
+     }
+   }
+
+   // MPI_Send(&inR_sent, dNy, MPI_DOUBLE, xd, 1, comm_cart);
+   // MPI_Send(&inL_sent, dNy, MPI_DOUBLE, xs, 1, comm_cart);
+   // MPI_Send(&inB_sent, dNx, MPI_DOUBLE, ys, 1, comm_cart);
+   // MPI_Send(&inT_sent, dNx, MPI_DOUBLE, yd, 1, comm_cart);
+   //
+   // MPI_Recv(&s_bcR, dNy, MPI_DOUBLE, xd, 1, comm_cart, MPI_STATUS_IGNORE);
+   // MPI_Recv(&s_bcL, dNy, MPI_DOUBLE, xs, 1, comm_cart, MPI_STATUS_IGNORE);
+   // MPI_Recv(&s_bcB, dNx, MPI_DOUBLE, ys, 1, comm_cart, MPI_STATUS_IGNORE);
+   // MPI_Recv(&s_bcT, dNx, MPI_DOUBLE, yd, 1, comm_cart, MPI_STATUS_IGNORE);
+
+     // double* inR_recv = new double[dNy];
+     // double* inT_recv = new double[dNx];
+     // double* inB_recv = new double[dNx];
+     // double* inL_recv = new double[dNy];
+
+     // for (int i = 0 ; i < dNy ; i++){
+     //   cout << inL_sent[i] << "  ";
+     // }cout << endl;
+     // if(xs == -2){
+     //   for (int i = 0 ; i < dNy ; i++){
+     //     cout << xs <<"R_r"<< s_bcR[i] << "  ";
+     //   }cout << endl;
+     // }
+     // for (int i = 0 ; i < dNx ; i++){
+     //   cout <<"sB_r"<< s_bcB[i] << "  ";
+     // }cout << endl;
+     // for (int i = 0 ; i < dNx ; i++){
+     //   cout <<"sT_r"<< s_bcT[i] << "  ";
+     // }cout << endl;
+     // for (int i = 0 ; i < dNy ; i++){
+     //   cout <<"L_r"<< s_bcL[i] << "  ";
+     // }cout << endl;
+     // for (int i = 0 ; i < dNy ; i++){
+     //   cout <<"R_r"<< s_bcR[i] << "  ";
+     // }cout << endl;
+
+
+
+     // MPI_Sendrecv(&inR_sent, dNy, MPI_DOUBLE, xd, 1,
+     //                 &s_bcL, dNy, MPI_DOUBLE, xs, 1, comm_cart, MPI_STATUS_IGNORE);
+     // MPI_Sendrecv(&inL_sent, dNy, MPI_DOUBLE, xs, 1,
+     //                 &s_bcR, dNy, MPI_DOUBLE, xd, 1, comm_cart, MPI_STATUS_IGNORE);
+     // MPI_Sendrecv(&inT_sent, dNx, MPI_DOUBLE, yd, 1,
+     //                 &s_bcB, dNx, MPI_DOUBLE, ys, 1, comm_cart, MPI_STATUS_IGNORE);
+     // MPI_Sendrecv(&inB_sent, dNx, MPI_DOUBLE, ys, 1,
+     //                 &s_bcT, dNx, MPI_DOUBLE, yd, 1, comm_cart, MPI_STATUS_IGNORE);
+     // double* R_rc = new double[dNy];
+
+     MPI_Sendrecv(inR_sent, dNy, MPI_DOUBLE, xd, 1,
+                     s_bcL, dNy, MPI_DOUBLE, xs, 1, comm_cart, MPI_STATUS_IGNORE);
+     MPI_Sendrecv(inL_sent, dNy, MPI_DOUBLE, xs, 2,
+                     s_bcR, dNy, MPI_DOUBLE, xd, 2, comm_cart, MPI_STATUS_IGNORE);
+     MPI_Sendrecv(inT_sent, dNx, MPI_DOUBLE, yd, 3,
+                     s_bcB, dNx, MPI_DOUBLE, ys, 3, comm_cart, MPI_STATUS_IGNORE);
+     MPI_Sendrecv(inB_sent, dNx, MPI_DOUBLE, ys, 4,
+                     s_bcT, dNx, MPI_DOUBLE, yd, 4, comm_cart, MPI_STATUS_IGNORE);
+
+                  // for (int i = 0 ; i < dNx ; i++){
+                  //   cout <<"B_r"<< s_bcB[i] << "  ";
+                  // }cout << endl;
+                  // for (int i = 0 ; i < dNx ; i++){
+                  //   cout <<"T_r"<< s_bcT[i] << "  ";
+                  // }cout << endl;
+                  // for (int i = 0 ; i < dNy ; i++){
+                  //   cout <<"L_r"<< s_bcL[i] << "  ";
+                  // }cout << endl;
+                  // for (int i = 0 ; i < dNy ; i++){
+                  //   cout << xs <<"R_r"<< s_bcR[i] << "  ";
+                  // }cout << endl;
+
+
+
+
+
+
+                  delete[] inT_sent,inB_sent,inL_sent,inR_sent;
+
+   /*
+   if (Px == 0){
+     if (x == 0){
+       MPI_Send(&inR_sent, dNy, MPI_DOUBLE, x+1, 1, comm_cart);
+       // MPI_Recv(&s_bcR, dNy, MPI_DOUBLE, x+1, 1, comm_cart, MPI_STATUS_IGNORE);
+     }
+     else if (x == Px - 1){
+       MPI_Send(&inL_sent, dNy, MPI_DOUBLE, x-1, 1, comm_cart);
+       // MPI_Recv(&s_bcL, dNy, MPI_DOUBLE, x-1, 1, comm_cart, MPI_STATUS_IGNORE);
+     }
+     else{
+       MPI_Send(&inR_sent, dNy, MPI_DOUBLE, x+1, 1, comm_cart);
+       MPI_Send(&inL_sent, dNy, MPI_DOUBLE, x-1, 1, comm_cart);
+       // MPI_Recv(&s_bcR, dNy, MPI_DOUBLE, x+1, 1, comm_cart, MPI_STATUS_IGNORE);
+       // MPI_Recv(&s_bcL, dNy, MPI_DOUBLE, x-1, 1, comm_cart, MPI_STATUS_IGNORE);
+     }
+   }
+   else if(Py == 0){
+     if (y == 0){
+       MPI_Send(&inT_sent, dNx, MPI_DOUBLE, y+1, 1, comm_cart);
+       // MPI_Recv(&s_bcT, dNx, MPI_DOUBLE, y+1, 1, comm_cart, MPI_STATUS_IGNORE);
+     }
+     else if (y == Py - 1){
+       MPI_Send(&inB_sent, dNx, MPI_DOUBLE, y-1, 1, comm_cart);
+       // MPI_Recv(&s_bcB, dNx, MPI_DOUBLE, y-1, 1, comm_cart, MPI_STATUS_IGNORE);
+     }
+     else{
+       MPI_Send(&inT_sent, dNx, MPI_DOUBLE, y+1, 1, comm_cart);
+       MPI_Send(&inB_sent, dNx, MPI_DOUBLE, y-1, 1, comm_cart);
+       // MPI_Recv(&s_bcT, dNx, MPI_DOUBLE, y+1, 1, comm_cart, MPI_STATUS_IGNORE);
+       // MPI_Recv(&s_bcB, dNx, MPI_DOUBLE, y-1, 1, comm_cart, MPI_STATUS_IGNORE);
+     }
+   }
+   else{
+     if (x == 0){
+       if (y == 0){
+         MPI_Send(&inR_sent, dNy, MPI_DOUBLE, x+1, 1, comm_cart);
+         MPI_Send(&inT_sent, dNx, MPI_DOUBLE, y+1, 1, comm_cart);
+         // MPI_Recv(&s_bcR, dNy, MPI_DOUBLE, x+1, 1, comm_cart, MPI_STATUS_IGNORE);
+         // MPI_Recv(&s_bcT, dNx, MPI_DOUBLE, y+1, 1, comm_cart, MPI_STATUS_IGNORE);
+       }
+       else if (y == Py - 1){
+         MPI_Send(&inR_sent, dNy, MPI_DOUBLE, x+1, 1, comm_cart);
+         MPI_Send(&inB_sent, dNx, MPI_DOUBLE, y-1, 1, comm_cart);
+         // MPI_Recv(&s_bcR, dNy, MPI_DOUBLE, x+1, 1, comm_cart, MPI_STATUS_IGNORE);
+         // MPI_Recv(&s_bcB, dNx, MPI_DOUBLE, y-1, 1, comm_cart, MPI_STATUS_IGNORE);
+       }
+       else{
+         MPI_Send(&inR_sent, dNy, MPI_DOUBLE, x+1, 1, comm_cart);
+         // MPI_Recv(&s_bcR, dNy, MPI_DOUBLE, x+1, 1, comm_cart, MPI_STATUS_IGNORE);
+       }
+     }
+     else if (x == Px - 1){
+       if (y == 0){
+         MPI_Send(&inL_sent, dNy, MPI_DOUBLE, x-1, 1, comm_cart);
+         MPI_Send(&inT_sent, dNx, MPI_DOUBLE, y+1, 1, comm_cart);
+         // MPI_Recv(&s_bcL, dNy, MPI_DOUBLE, x-1, 1, comm_cart, MPI_STATUS_IGNORE);
+         // MPI_Recv(&s_bcT, dNx, MPI_DOUBLE, y+1, 1, comm_cart, MPI_STATUS_IGNORE);
+       }
+       else if (y == Py - 1){
+         MPI_Send(&inL_sent, dNy, MPI_DOUBLE, x-1, 1, comm_cart);
+         MPI_Send(&inB_sent, dNx, MPI_DOUBLE, y-1, 1, comm_cart);
+         // MPI_Recv(&s_bcL, dNy, MPI_DOUBLE, x-1, 1, comm_cart, MPI_STATUS_IGNORE);
+         // MPI_Recv(&s_bcB, dNx, MPI_DOUBLE, y-1, 1, comm_cart, MPI_STATUS_IGNORE);
+       }
+       else{
+         MPI_Send(&inL_sent, dNy, MPI_DOUBLE, x-1, 1, comm_cart);
+         // MPI_Recv(&s_bcL, dNy, MPI_DOUBLE, x-1, 1, comm_cart, MPI_STATUS_IGNORE);
+       }
+     }
+     else if(y == 0){
+         MPI_Send(&inT_sent, dNx, MPI_DOUBLE, y+1, 1, comm_cart);
+         // MPI_Recv(&s_bcT, dNx, MPI_DOUBLE, y+1, 1, comm_cart, MPI_STATUS_IGNORE);
+     }
+     else if(y == Py - 1){
+         MPI_Send(&inB_sent, dNx, MPI_DOUBLE, y-1, 1, comm_cart);
+         // MPI_Recv(&s_bcB, dNx, MPI_DOUBLE, y-1, 1, comm_cart, MPI_STATUS_IGNORE);
+     }
+     else{
+         MPI_Send(&inR_sent, dNy, MPI_DOUBLE, x+1, 1, comm_cart);
+         MPI_Send(&inT_sent, dNx, MPI_DOUBLE, y+1, 1, comm_cart);
+         MPI_Send(&inL_sent, dNy, MPI_DOUBLE, x-1, 1, comm_cart);
+         MPI_Send(&inB_sent, dNx, MPI_DOUBLE, y-1, 1, comm_cart);
+         // MPI_Recv(&s_bcR, dNy, MPI_DOUBLE, x+1, 1, comm_cart, MPI_STATUS_IGNORE);
+         // MPI_Recv(&s_bcT, dNx, MPI_DOUBLE, y+1, 1, comm_cart, MPI_STATUS_IGNORE);
+         // MPI_Recv(&s_bcL, dNy, MPI_DOUBLE, x-1, 1, comm_cart, MPI_STATUS_IGNORE);
+         // MPI_Recv(&s_bcB, dNx, MPI_DOUBLE, y-1, 1, comm_cart, MPI_STATUS_IGNORE);
+     }
+   }
+   */
+
+ }
+
+ void LidDrivenCavity::mpiSendRecive_vorticity(int xs, int xd, int ys, int yd, MPI_Comm comm_cart){
+   double* inT_sent = new double[dNx];
+   double* inB_sent = new double[dNx];
+   double* inL_sent = new double[dNy];
+   double* inR_sent = new double[dNy];
+   for (int j = 0 ; j < dNy ; j++){
+     for (int i = 0 ; i < dNx ; i++){
+       if (i == 0){inL_sent[j] = v_in[j + dNy*i];}
+       if (i == dNx-1){inR_sent[j] = v_in[j + dNy*i];}
+       if (j == 0){inB_sent[i] = v_in[j + dNy*i];}
+       if (j == dNy-1){inT_sent[i] = v_in[j + dNy*i];}
+     }
+   }
+   // for (int i = 0 ; i < dNy ; i++){
+   //   cout <<"L_s"<< inR_sent[i] << "  ";
+   // }cout << endl;
+     MPI_Sendrecv(inR_sent, dNy, MPI_DOUBLE, xd, 1,
+                     v_bcL, dNy, MPI_DOUBLE, xs, 1, comm_cart, MPI_STATUS_IGNORE);
+     MPI_Sendrecv(inL_sent, dNy, MPI_DOUBLE, xs, 2,
+                     v_bcR, dNy, MPI_DOUBLE, xd, 2, comm_cart, MPI_STATUS_IGNORE);
+     MPI_Sendrecv(inT_sent, dNx, MPI_DOUBLE, yd, 3,
+                     v_bcB, dNx, MPI_DOUBLE, ys, 3, comm_cart, MPI_STATUS_IGNORE);
+     MPI_Sendrecv(inB_sent, dNx, MPI_DOUBLE, ys, 4,
+                     v_bcT, dNx, MPI_DOUBLE, yd, 4, comm_cart, MPI_STATUS_IGNORE);
+
+                     // for (int i = 0 ; i < dNx ; i++){
+                     //   cout <<"B_r"<< v_bcB[i] << "  ";
+                     // }cout << endl;
+                     // for (int i = 0 ; i < dNx ; i++){
+                     //   cout <<"T_r"<< v_bcT[i] << "  ";
+                     // }cout << endl;
+                     // for (int i = 0 ; i < dNy ; i++){
+                     //   cout <<"L_r"<< v_bcL[i] << "  ";
+                     // }cout << endl;
+                     // for (int i = 0 ; i < dNy ; i++){
+                     //   cout << xs <<"R_r"<< v_bcR[i] << "  ";
+                     // }cout << endl;
+    delete[] inT_sent,inB_sent,inL_sent,inR_sent;
+
+ }

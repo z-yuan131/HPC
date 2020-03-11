@@ -1,6 +1,7 @@
 #pragma once
-#include "PoissonSolver.h"
+// #include "PoissonSolver.h"
 #include <string>
+#include <mpi.h>
 
 
 class LidDrivenCavity
@@ -19,7 +20,7 @@ public:
     void SetFinalTime(double finalt);
     void SetReynoldsNumber(double re);
     void Setmeshsize(double lx, double ly, int nx, int ny);
-    void SetPxPy(int Px, int Py);
+    void SetPxPy(int px, int py);
     void SetSubdomainGrids(int Nx, int Ny);
     void Initialise();
 
@@ -31,7 +32,8 @@ public:
     void PoissonSolver();
     double Error();
     void WriteToFile();
-
+    void mpiSendRecive_streamf(int xr, int xd, int yr, int yd, MPI_Comm comm_cart);
+    void mpiSendRecive_vorticity(int xr, int xd, int yr, int yd, MPI_Comm comm_cart);
     void test_debug();
 
     void Integrate();
@@ -50,7 +52,7 @@ private:
     double* v_bcT = nullptr;
     double* v_bcB = nullptr;
     double* s_in = nullptr;      //array of interior stream function
-    double* s_in_error = new double[(Nx-2)*(Ny-2)];
+    double* s_in_error = nullptr;
     double* s_bcT = nullptr;      //array of boundary stream function
     double* s_bcB = nullptr;
     double* s_bcL = nullptr;      //array of boundary stream function
