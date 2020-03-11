@@ -1,7 +1,7 @@
 #pragma once
-
+#include "PoissonSolver.h"
 #include <string>
-using namespace std;
+
 
 class LidDrivenCavity
 {
@@ -12,7 +12,7 @@ public:
     LidDrivenCavity(double Lx, double Ly, int Nx, int Ny, int Px, int Py, double dt, double T, double Re);
     // ~LidDrivenCavity();   //deconsturct constructor
 
-    void SetSubdomainGrids(int Nx, int Ny);
+
     void SetDomainSize(double xlen, double ylen);
     void SetGridSize(int nx, int ny);
     void SetTimeStep(double deltat);
@@ -20,10 +20,11 @@ public:
     void SetReynoldsNumber(double re);
     void Setmeshsize(double lx, double ly, int nx, int ny);
     void SetPxPy(int Px, int Py);
+    void SetSubdomainGrids(int Nx, int Ny);
     void Initialise();
 
-    // void Initialise_top_boundary();
-    void CalculateVorticityBC(int TopBC);
+    // void Initialise_top_boundary(int sizeNx, int sizeNy, double deltay);
+    void CalculateVorticityBC();
     void CalculateInteriorVorticityAtTimet();
     void BuildMatrixA_B_C();
     void TimeAdvance();
@@ -31,15 +32,16 @@ public:
     double Error();
     void WriteToFile();
 
-    void mpisend(int x, int y, MPI_Comm comm_cart);
-    void mpirecive();
-
     void test_debug();
 
     void Integrate();
 
+    // friend class PoissonSolver;
+
     // Add any other public functions
     // There should be another function to calculate s_bc sended by another core
+
+
 
 private:
     double* v_in = nullptr;      //array of interior vorticity
@@ -58,8 +60,6 @@ private:
     double* B = nullptr;      //matrix(array) for time advance
     double* C = nullptr;      //matrix(array) for time advance
 
-    // int* coords = nullptr;    //vector for topology
-
 
     double dt;
     double T;
@@ -74,4 +74,5 @@ private:
     double Re;
     double dx;
     double dy;
+    // friend class PoissonSolver;
 };
