@@ -9,10 +9,10 @@ using namespace std;
 int main(int argc, char **argv)
 {
   //initialization
-  int Nx = 10,Ny = 30;
+  int Nx = 30,Ny = 20;
   double Lx = 1.0,Ly = 1.0,Re = 1000.0;
-  double dt = 0.001*Re*Lx*Ly/4/(Ny-1)/(Ny-1);
-  double T = 10000*dt;
+  double dt = 0.0001/*Re*Lx*Ly/4/(Nx-1)/(Ny-1)*/;
+  double T = 20000*dt;
 
 
   // Initialize the MPI environment
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
   // cout << "cart_rank: " << cart_rank
   //      << " coords: (" << coords[0] <<","<< coords[1] << ")"<< endl;
   int TopBC;
-  if (coords[1] == 0){
+  if (coords[1] == Py-1){
     TopBC = 1;
   }
   else{
@@ -89,9 +89,10 @@ int main(int argc, char **argv)
   shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
 */
 
-
+/**/
   int i = 0, j;
-  double error = 0.000000001;
+  double error = 0.0000001;
+  double er;
 
   do{
     j = 0;
@@ -105,28 +106,30 @@ int main(int argc, char **argv)
 
     do{
       shiyu_solver->PoissonSolver();
-      shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
+      shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart,cart_rank);
       j++;
       if (Px == 1 && Py == 1){break;}
       if (i == 0){break;}
       // cout << "j = " << j << endl;
-    }while(j < 10);
+    }while(j < 1);
 
-    // Poisson->PoissonSolverMe(shiyu_solver);
-    // cout << "rank " << cart_rank << " Nx = "<< Nx
-    //      << "\nTime: t = " << i*dt << "\nstep = "<< i
-    //      << "\nnorm = "<< shiyu_solver->Error() << endl << endl;
-    cout << "rank" << cart_rank << "\nTime: t = " << i*dt << "\nstep = "<< i
-         << "\nnorm = "<< shiyu_solver->Error() << endl << endl;
+
+    er = shiyu_solver->Error(comm_cart);
+    if (cart_rank == 0){
+      cout << "rank" << cart_rank << "\nTime: t = " << i*dt << "\nstep = "<< i
+           << "\nnorm = "<< er << endl << endl;
+    }
+
     i++;
-  }while(dt*i < T && shiyu_solver->Error() > error);
+  }while(dt*i < T && er > error);
+
 
     // shiyu_solver->mpiGarther(comm_cart);
 
     // if (cart_rank == 0){
       shiyu_solver->WriteToFile();
     // }
-
+/**/
 
   // Finalize the MPI environment.
   MPI_Finalize();

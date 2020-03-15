@@ -30,9 +30,11 @@ public:
     void BuildMatrixA_B_C();
     void TimeAdvance();
     void PoissonSolver();
-    double Error();
+    // double Error();
+    double Error(MPI_Comm comm_cart);
+
     void WriteToFile();
-    void mpiSendRecive_streamf(int xr, int xd, int yr, int yd, MPI_Comm comm_cart);
+    void mpiSendRecive_streamf(int xr, int xd, int yr, int yd, MPI_Comm comm_cart,int cart_rank);
     void mpiSendRecive_vorticity(int xr, int xd, int yr, int yd, MPI_Comm comm_cart);
     void mpiGarther(MPI_Comm comm_cart);
     void test_debug();
@@ -78,5 +80,6 @@ private:
     double Re;
     double dx;
     double dy;
+
     // friend class PoissonSolver;
 };
