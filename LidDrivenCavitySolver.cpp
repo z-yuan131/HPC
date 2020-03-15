@@ -9,10 +9,10 @@ using namespace std;
 int main(int argc, char **argv)
 {
   //initialization
-  int Nx = 100,Ny = 100;
+  int Nx = 10,Ny = 30;
   double Lx = 1.0,Ly = 1.0,Re = 1000.0;
-  double dt = 0.0001;
-  double T = 2*dt;
+  double dt = 0.001*Re*Lx*Ly/4/(Ny-1)/(Ny-1);
+  double T = 10000*dt;
 
 
   // Initialize the MPI environment
@@ -22,7 +22,7 @@ int main(int argc, char **argv)
       return -1;
   }
 
-  int Px = 2,Py = 2;
+  int Px = 1,Py = 1;
   //A Cartesian grid topology is created
   int ndims = 2;                //dimensions
   int dims[ndims] = {Px, Py};   //processors in each direction
@@ -44,8 +44,8 @@ int main(int argc, char **argv)
   if (Px == 1 && Py == 1){
     coords[1] = 0;
   }
-  cout << "cart_rank: " << cart_rank
-       << " coords: (" << coords[0] <<","<< coords[1] << ")"<< endl;
+  // cout << "cart_rank: " << cart_rank
+  //      << " coords: (" << coords[0] <<","<< coords[1] << ")"<< endl;
   int TopBC;
   if (coords[1] == 0){
     TopBC = 1;
@@ -90,15 +90,16 @@ int main(int argc, char **argv)
 */
 
 
-  int i = 0, j = 0;
-  double error = 0.0000001;
+  int i = 0, j;
+  double error = 0.000000001;
 
   do{
+    j = 0;
+    shiyu_solver->CalculateVorticityBC(TopBC);
 
-    shiyu_solver->CalculateVorticityBC();
+    // shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
     shiyu_solver->CalculateInteriorVorticityAtTimet();
 
-    shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
     shiyu_solver->mpiSendRecive_vorticity(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
     shiyu_solver->TimeAdvance();
 
@@ -107,20 +108,24 @@ int main(int argc, char **argv)
       shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
       j++;
       if (Px == 1 && Py == 1){break;}
-    }while(j < 5);
+      if (i == 0){break;}
+      // cout << "j = " << j << endl;
+    }while(j < 10);
 
     // Poisson->PoissonSolverMe(shiyu_solver);
     // cout << "rank " << cart_rank << " Nx = "<< Nx
     //      << "\nTime: t = " << i*dt << "\nstep = "<< i
     //      << "\nnorm = "<< shiyu_solver->Error() << endl << endl;
-    cout << "\nTime: t = " << i*dt << "\nstep = "<< i
+    cout << "rank" << cart_rank << "\nTime: t = " << i*dt << "\nstep = "<< i
          << "\nnorm = "<< shiyu_solver->Error() << endl << endl;
     i++;
   }while(dt*i < T && shiyu_solver->Error() > error);
 
+    // shiyu_solver->mpiGarther(comm_cart);
 
-
-  shiyu_solver->WriteToFile();
+    // if (cart_rank == 0){
+      shiyu_solver->WriteToFile();
+    // }
 
 
   // Finalize the MPI environment.

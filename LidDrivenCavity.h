@@ -25,7 +25,7 @@ public:
     void Initialise();
 
     // void Initialise_top_boundary(int sizeNx, int sizeNy, double deltay);
-    void CalculateVorticityBC();
+    void CalculateVorticityBC(int TopBC);
     void CalculateInteriorVorticityAtTimet();
     void BuildMatrixA_B_C();
     void TimeAdvance();
@@ -34,6 +34,7 @@ public:
     void WriteToFile();
     void mpiSendRecive_streamf(int xr, int xd, int yr, int yd, MPI_Comm comm_cart);
     void mpiSendRecive_vorticity(int xr, int xd, int yr, int yd, MPI_Comm comm_cart);
+    void mpiGarther(MPI_Comm comm_cart);
     void test_debug();
 
     void Integrate();
@@ -61,6 +62,7 @@ private:
     double* A_v = nullptr;
     double* B = nullptr;      //matrix(array) for time advance
     double* C = nullptr;      //matrix(array) for time advance
+    double*s_in_out = nullptr;
 
 
     double dt;
