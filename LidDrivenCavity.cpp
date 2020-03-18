@@ -70,9 +70,8 @@
 
  void LidDrivenCavity::SetDomainSize(double xlen, double ylen)
  {
-     Lx = xlen;
-     Ly = ylen;
-     // cout << xlen << endl;
+   Lx = xlen;
+   Ly = ylen;
  }
 
  void LidDrivenCavity::SetGridSize(int nx, int ny)
@@ -107,11 +106,23 @@
    Py = py;
  }
 
- void LidDrivenCavity::SetSubdomainGrids(int Nx, int Ny){
-     dNx = (Nx-2) / Px;
-     dNy = (Ny-2) / Py;
-   // cout << "dNx = " << dNx <<endl;
-   // cout << "dNy = " << dNy <<endl;
+ void LidDrivenCavity::SetSubdomainGrids(int Nx, int Ny, int coordsx, int coordsy){
+   if (coordsx == Px-1 && coordsy == Py-1){
+     dNx  = ((Nx-2) - (Nx-2)%Px)/Px + (Nx-2)%Px;
+     dNy  = ((Ny-2) - (Ny-2)%Py)/Py + (Ny-2)%Py;
+   }
+   else if (coordsx == Px-1){
+     dNx  = ((Nx-2) - (Nx-2)%Px)/Px + (Nx-2)%Px;
+     dNy  = ((Ny-2) - (Ny-2)%Py)/Py;
+   }
+   else if (coordsy == Py-1){
+     dNx  = ((Nx-2) - (Nx-2)%Px)/Px;
+     dNy  = ((Ny-2) - (Ny-2)%Py)/Py + (Ny-2)%Py;
+   }
+   else{
+     dNx  = ((Nx-2) - (Nx-2)%Px)/Px;
+     dNy  = ((Ny-2) - (Ny-2)%Py)/Py;
+   }
  }
 
  void LidDrivenCavity::Initialise()
@@ -232,18 +243,18 @@
   v_bcB = tempB;
   v_bcT = tempT;
 
-        /*for (int i = 0 ; i < dNx ; i++){
-            cout << v_bcT[i] << "T  ";
-          }cout << endl;
-        for (int i = 0 ; i < dNx ; i++){
-            cout << v_bcB[i] << "B  ";
-          }cout << endl;
-        for (int i = 0 ; i < dNy ; i++){
-            cout << v_bcR[i] << "R  ";
-          }cout << endl;
-        for (int i = 0 ; i < dNy ; i++){
-            cout << v_bcL[i] << "L  ";
-          }cout << endl;*/
+        // for (int i = 0 ; i < dNx ; i++){
+        //     cout<< v_bcT[i] << "T  ";
+        //   }cout << endl;
+        // for (int i = 0 ; i < dNx ; i++){
+        //     cout << v_bcB[i] << "B  ";
+        //   }cout << endl;
+        // for (int i = 0 ; i < dNy ; i++){
+        //     cout << v_bcR[i] << "R  ";
+        //   }cout << endl;
+        // for (int i = 0 ; i < dNy ; i++){
+        //     cout << v_bcL[i] << "L  ";
+        //   }cout << endl;
 
   // delete[] temp;
  }
@@ -251,8 +262,6 @@
 
  void LidDrivenCavity::BuildMatrixA_B_C()    //dNx: points of interior domain.
  {
-     // int dNx = Nx-2;
-     // int dNy = Ny-2;
      int n = dNx*dNy;    //matrix A size
      int kl = dNy;    //Lower diagonal bandwidth
      int ku = dNy;    //Upper diagonal bandwidth
@@ -507,6 +516,8 @@
      double* term3 = new double[n];
      double* term4 = new double[n];
      double* term5 = new double[n];
+     double* error = new double[n];
+
 
 
 
@@ -598,6 +609,14 @@
        v_in[i] = v_in[i] - dt*term1[i] + dt*term3[i] - dt*term5[i];
      }
 
+     for (int i = 0 ; i < n ; i++){
+       error[i] = -term1[i] + term3[i] - term5[i];
+     }
+     v_error = error;
+
+
+
+
      // cout << "interior vorticity at time t + dt" << endl;
      // for (int j = 0 ; j < dNy ; j++){
      //   for (int i = 0; i < dNx ; i++){
@@ -606,7 +625,7 @@
      //   cout << "\n";
      // }
 
-     // delete[] term1,term2,term3,term4,term5;
+     delete[] term1,term2,term3,term4,term5;
 
  }
 
@@ -624,11 +643,12 @@
       int* ipiv = new int[n];
       double* temp = new double[n];      //for lapack will overwrite v with s;
 
+
       for (int i = 0 ; i < ldab*n; i++){
         AB[i] = A[i];
       }
 
-
+/*
       //apply boundary conditions
       for (int j = 0 ; j < dNy ; j++){
         for (int i = 0 ; i < dNx ; i++){
@@ -661,13 +681,56 @@
             v_in[j + dNy*i] += s_bcR[j]/dx/dx;
           }
         }
-      }
-
-
+      }*/
 
       for (int i = 0 ; i < n ; i++){
         temp[i] = v_in[i];
       }
+
+      //apply boundary conditions
+      for (int j = 0 ; j < dNy ; j++){
+        for (int i = 0 ; i < dNx ; i++){
+          if (j == 0){         //bottom bc
+            if (i == 0){
+              temp[j + dNy*i] += (s_bcB[i]/dy/dy + s_bcL[j]/dx/dx);
+            }
+            else if(i == dNx - 1){
+              temp[j + dNy*i] += (s_bcB[i]/dy/dy + s_bcR[j]/dx/dx);
+            }
+            else {
+              temp[j + dNy*i] += s_bcB[i]/dy/dy;
+            }
+
+          }
+          else if(j == dNy - 1){      //top bc
+            if (i == 0){
+              temp[j + dNy*i] += (s_bcT[i]/dy/dy + s_bcL[j]/dx/dx);
+            }
+            else if(i == dNx - 1){
+              temp[j + dNy*i] += (s_bcT[i]/dy/dy + s_bcR[j]/dx/dx);
+            }
+            else {
+              temp[j + dNy*i] += s_bcT[i]/dy/dy;
+            }
+
+          }
+          else if(i == 0){    //left bc
+            temp[j + dNy*i] += s_bcL[j]/dx/dx;
+          }
+          else if(i == dNx - 1){      //right bc
+            temp[j + dNy*i] += s_bcR[j]/dx/dx;
+          }
+        }
+      }
+
+
+        // for (int i = 0 ; i < dNy ; i++){
+        //   cout <<" R_s "<< s_bcR[i] << "  ";
+        // }cout << endl;
+
+
+
+
 
 
       // double* error_temp = new double[dNx*dNy];
@@ -675,7 +738,6 @@
       //   error_temp[i] = s_in[i];
       // }
       // s_in_error = error_temp;
-      s_in_error = s_in;
 
       // cout << "Poisson solver:AB" << endl;
       // for (int j = 0 ; j < ldab ; j++){
@@ -699,8 +761,9 @@
       //   }cout << endl;
 
 
+      // s_in_error = s_in;
 
-      F77Name(dgbsv)(n, kl, ku, nrhs, AB, ldab, ipiv, temp, n, info); //v is input and output
+      F77Name(dgbsv)(n, kl, ku, nrhs, AB, ldab, ipiv, temp, n, info); //temp is input and output
       // cout << "info = " << info << endl;
       // cout << "interior vorticity after" << endl;
       // for (int j = 0 ; j < dNy ; j++){
@@ -709,7 +772,10 @@
       //   }
       //   cout << "\n";
       // }
-      s_in = temp;
+      for (int i = 0 ; i < n ; i++){
+        s_in[i] = temp[i];
+      }
+      // s_in = temp;
       // for (int j = 0 ; j < dNy ; j++){
       //   for (int i = 0; i < dNx ; i++){
       //     cout << s_in[j + i*dNy] << "    ";
@@ -747,25 +813,101 @@
   //   return er;
   // }
 
+  double LidDrivenCavity::calculateprecision(MPI_Comm comm_cart){
+    int n = dNx*dNy;    //matrix A size
+    int kl = dNy;    //Lower diagonal bandwidth
+    int ku = dNy;    //Upper diagonal bandwidth
+    int klB = 1;    //Lower diagonal bandwidth
+    int kuB = 1;    //Upper diagonal bandwidth
+    int nrhs = 1;     //number of right hand side vectors
+    int ldab = 1 + 2*kl + ku;   //Number of rows in compressed matrix for Lapack
+    int bdab = 1 + kl + ku;   //Number of rows in compressed matrix for Blas
+    int ldb = n;      //size of RHS vector
+    double* term6 = new double[n];
+    F77Name(dgbmv)('N', n, n, kl, ku, 1.0, A_v , bdab, s_in, 1, 0.0, term6, 1);
+
+    //apply boundary conditions
+    for (int j = 0 ; j < dNy ; j++){
+      for (int i = 0 ; i < dNx ; i++){
+        if (j == 0){         //bottom bc
+          if (i == 0){
+            term6[j + dNy*i] -= (s_bcB[i]/dy/dy + s_bcL[j]/dx/dx);
+          }
+          else if(i == dNx - 1){
+            term6[j + dNy*i] -= (s_bcB[i]/dy/dy + s_bcR[j]/dx/dx);
+          }
+          else {
+            term6[j + dNy*i] -= s_bcB[i]/dy/dy;
+          }
+
+        }
+        else if(j == dNy - 1){      //top bc
+          if (i == 0){
+            term6[j + dNy*i] -= (s_bcT[i]/dy/dy + s_bcL[j]/dx/dx);
+          }
+          else if(i == dNx - 1){
+            term6[j + dNy*i] -= (s_bcT[i]/dy/dy + s_bcR[j]/dx/dx);
+          }
+          else {
+            term6[j + dNy*i] -= s_bcT[i]/dy/dy;
+          }
+
+        }
+        else if(i == 0){    //left bc
+          term6[j + dNy*i] -= s_bcL[j]/dx/dx;
+        }
+        else if(i == dNx - 1){      //right bc
+          term6[j + dNy*i] -= s_bcR[j]/dx/dx;
+        }
+      }
+    }
+
+    double precision;
+    double* infnorm = new double[n];
+    for (int i = 0 ; i < n ; i++){
+      infnorm[i] = fabs(term6[i]-v_in[i]);
+    }
+
+    precision = infnorm[0];
+    for (int i = 1 ; i < n ; i++){
+      precision = fmax(precision,infnorm[i]);
+    }
+
+    double precision_gather;
+    MPI_Reduce(&precision, &precision_gather, 1, MPI_DOUBLE, MPI_MAX, 0, comm_cart); //get nax error in the domain
+    MPI_Bcast(&precision_gather, 1, MPI_DOUBLE, 0, comm_cart); //set this value to all processors
+
+    delete[] term6;
+    return precision_gather;
+
+  }
+
 
  double LidDrivenCavity::Error(MPI_Comm comm_cart){
 
-   double norm1;
-   double norm2;
+   // double norm1;
+   // double norm2;
+   int n = dNx*dNy;    //matrix A size
    double er;
    double er_gather;
-   for (int  i = 0 ; i < dNx*dNy ; i++){
-     norm1 += s_in_error[i]*s_in_error[i];
-     norm2 += s_in[i]*s_in[i];
+   // for (int  i = 0 ; i < dNx*dNy ; i++){
+   //   norm1 += s_in_error[i]*s_in_error[i];
+   //   norm2 += s_in[i]*s_in[i];
+   // }
+   // er = fabs(sqrt(norm1) - sqrt(norm2));
+
+
+   er = v_error[0];
+   for (int i = 1 ; i < n ; i++){
+     er = fmax(er,fabs(v_error[i]));
    }
-   er = fabs(sqrt(norm1) - sqrt(norm2));
 
    // int MPI_Bcast( void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm comm )
    // int MPI_Reduce(const void *sendbuf, void *recvbuf, int count,MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm)
-// cout<< er <<endl;
-   MPI_Reduce(&er, &er_gather, 1, MPI_DOUBLE, MPI_MAX, 0, comm_cart); //get nax error in the domain
+
+   MPI_Reduce(&er, &er_gather, 1, MPI_DOUBLE, MPI_MAX, 0, comm_cart); //get max error in the domain
    MPI_Bcast(&er_gather, 1, MPI_DOUBLE, 0, comm_cart); //set this value to all processors
-   // cout<< er_gather <<endl;
+
    return er_gather;
  }
 
@@ -775,25 +917,35 @@
 
 
 
- void LidDrivenCavity::WriteToFile(){
+ void LidDrivenCavity::WriteToFile(int cart_rank){
    // int dNx = Nx - 2;
    // int dNy = Ny - 2;
+   string rank= to_string(cart_rank);
+
    ofstream vorticityfile;
    vorticityfile.open ("vorticity.txt");
    // vorticityfile << "x   y   vorticity.\n";
-   for (int j = 0 ; j < dNy ; j++){
-     for (int i = 0; i < dNx ; i++){
-       vorticityfile << dx*i << "   " << dy*j << "   " << v_in[j + i*dNy] << "\n";
+   for (int j = 0 ; j < Ny-2 ; j++){
+     for (int i = 0; i < Nx-2 ; i++){
+       vorticityfile << dx*i << "   " << dy*j << "   " << v_in_out[j + i*dNy] << "\n";
      }
+   }
+   vorticityfile.close();
+
+   ofstream vorticitybcfile;
+   vorticitybcfile.open ("vorticity_bc.txt");
+   // vorticityfile << "x   y   vorticity.\n";
+   for (int j = 0 ; j < 2*(Ny-2+Nx-2) ; j++){
+     vorticitybcfile << v_bc_out[j] << "\n";
    }
    vorticityfile.close();
 
    ofstream streamFunctiom;
    streamFunctiom.open ("streamFunctiom.txt");
    // vorticityfile << "x   y   vorticity.\n";
-   for (int j = 0 ; j < dNy ; j++){
-     for (int i = 0; i < dNx ; i++){
-       streamFunctiom << dx*i << "   " << dy*j << "   " << s_in[j + i*dNy] << "\n";
+   for (int j = 0 ; j < Ny-2 ; j++){
+     for (int i = 0; i < Nx-2 ; i++){
+       streamFunctiom << dx*i << "   " << dy*j << "   " << s_in_out[j + i*dNy] << "\n";
      }
    }
    streamFunctiom.close();
@@ -844,6 +996,14 @@
        if (j == dNy-1){inT_sent[i] = s_in[j + dNy*i];}
      }
    }
+   // cout << "for interior vorticity" << endl;
+   // for (int j = 0 ; j < dNy ; j++){
+   //   for (int i = 0; i < dNx ; i++){
+   //     cout <<"cart_rank "<<cart_rank<<"->"<<s_in[j + i*dNy] << "    ";
+   //   }
+   //   cout << "\n";
+   // }
+   // cout << endl;
    // for (int i = 0 ; i < dNx ; i++){
    //   cout <<"B_r"<< s_bcB[i] << "  ";
    // }cout << endl;
@@ -852,12 +1012,14 @@
    // }cout << endl;
  //   if(cart_rank == 1){
  //   for (int i = 0 ; i < dNy ; i++){
- //     cout <<"cart_rank "<<cart_rank<<" L_r "<< inL_sent[i] << "  ";
+ //     cout <<"cart_rank "<<cart_rank<<" L_s "<< inL_sent[i] << "  ";
  //   }cout << endl;
  // }
-   // for (int i = 0 ; i < dNy ; i++){
-   //   cout << xs <<"R_r"<< s_bcR[i] << "  ";
-   // }cout << endl;
+ //   if(cart_rank == 0){
+ //   for (int i = 0 ; i < dNy ; i++){
+ //     cout <<"cart_rank "<<cart_rank<<" R_s "<< inR_sent[i] << "  ";
+ //   }cout << endl;
+ //  }
 
      MPI_Sendrecv(inR_sent, dNy, MPI_DOUBLE, xd, 1,
                      s_bcL, dNy, MPI_DOUBLE, xs, 1, comm_cart, MPI_STATUS_IGNORE);
@@ -874,14 +1036,16 @@
                   // for (int i = 0 ; i < dNx ; i++){
                   //   cout <<"T_r"<< s_bcT[i] << "  ";
                   // }cout << endl;
-                  // for (int i = 0 ; i < dNy ; i++){
-                  //   cout <<"L_r"<< s_bcL[i] << "  ";
-                  // }cout << endl;
-                //   if(cart_rank == 0){
-                //     for (int i = 0 ; i < dNy ; i++){
-                //       cout << xs <<"R_r"<< s_bcR[i] << "  ";
-                //     }cout << endl;
-                // }
+                  // if(cart_rank == 1){
+                  //   for (int i = 0 ; i < dNy ; i++){
+                  //     cout <<"cart_rank "<<cart_rank <<" L_r "<< s_bcL[i] << "  ";
+                  //   }cout << endl;
+                  // }
+                  // if(cart_rank == 0){
+                  //   for (int i = 0 ; i < dNy ; i++){
+                  //     cout <<"cart_rank "<<cart_rank <<" R_r "<< s_bcR[i] << "  ";
+                  //   }cout << endl;
+                  // }
 
 
 
@@ -946,12 +1110,14 @@
 
  }
 
- void LidDrivenCavity::mpiGarther(MPI_Comm comm_cart){
+ void LidDrivenCavity::mpiGarther(MPI_Comm comm_cart, int cart_rank, int coordsx, int xs, int xd, int ys, int yd){
    // Collate local contributions
    // // double* rec_s_in = new double[dNx*dNy];
    // double* s_in_final;
    // if (comm_cart == 0){
      double* s_in_final = new double[(Nx-2)*(Ny-2)];
+     double* v_in_final = new double[(Nx-2)*(Ny-2)];
+
      // s_in_final[(Nx-2)*(Ny-2)];
 
    // }
@@ -964,25 +1130,137 @@
    // MPI_Gather(s_in, dNx*dNy, MPI_DOUBLE, s_in_final, dNx*dNy, MPI_DOUBLE, 0, comm_cart);
    // s_in_out = s_in_final;
 
-   // cout << "for interior vorticity" << endl;
-   // for (int j = 0 ; j < Ny-2 ; j++){
-   //   for (int i = 0; i < Nx-2 ; i++){
-   //     cout << s_in_out[j + i*dNy] << "    ";
-   //   }
-   //   cout << "\n";
-   // }
-   // cout << endl;
+
+   int dNy0,dNx0;
+
+   // int MPI_Send(const void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
+   // int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status * status)
+   for(int k = 0 ; k < dNx ; k++){
+     MPI_Send(s_in+k*dNy, dNy, MPI_DOUBLE, 0, k, comm_cart);
+     MPI_Send(v_in+k*dNy, dNy, MPI_DOUBLE, 0, k+Nx, comm_cart);
+   }
+
+   if (cart_rank == 0){
+     for(int i = 0 ; i < Px ; i++){
+       for(int rank = i*Py ; rank < Py+i*Py ; rank++){
+
+         if (rank%Py == Py-1){dNy0 = dNy + (Ny-2)%Py;}
+         else {dNy0 = dNy;}
+
+         if (rank >= Px*Py-Py){dNx0 = dNx + (Nx-2)%Px;}
+         else {dNx0 = dNx;}
+
+         for(int k = 0 ; k < dNx0 ; k++){
+           MPI_Recv(s_in_final+dNy*(rank - (rank/Py)*Py)+k*(Ny-2)+i*dNx*(Ny-2), dNy0, MPI_DOUBLE, rank, k, comm_cart, MPI_STATUS_IGNORE);
+           MPI_Recv(v_in_final+dNy*(rank - (rank/Py)*Py)+k*(Ny-2)+i*dNx*(Ny-2), dNy0, MPI_DOUBLE, rank, k+Nx, comm_cart, MPI_STATUS_IGNORE);
+         }
+
+       }
+     }
+   }
+
+   s_in_out = s_in_final;
+   v_in_out = v_in_final;
 
 
-   // int MPI_Gatherv(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
-   //              void *recvbuf, const int *recvcounts, const int *displs,
-   //              MPI_Datatype recvtype, int root, MPI_Comm comm)
 
-for (int j = 0 ; j < Ny-2 ; j++){
-  for (int i = 0 ; i < Nx-2 ; i++){
+ //   for (int j = 0 ; j < dNy*dNx ; j++){
+ //       cout <<"rank = "<< cart_rank<< s_in[j] << "    ";
+ //   }
+ //   cout << endl;
+ //   if (cart_rank == 0){
+ //   cout << "rank = "<< cart_rank<< ",s in final" << endl;
+ //   for (int j = 0 ; j < (Nx-2)*(Ny-2) ; j++){
+ //       cout << s_in_final[j] << "    ";
+ //   }
+ //   cout << endl;
+ // }
 
+  // Gather boundary conditions to root processor
+  double* v_bc_final = new double[2*(Nx-2+Ny-2)]; //store order: left-right-bottom-top
+  if (xs == -2){ //left bc
+    MPI_Send(v_bcL, dNy, MPI_DOUBLE, 0, 2, comm_cart);
   }
-}
+
+  if (cart_rank == 0){
+      for(int rank = 0 ; rank < Py ; rank++){
+
+        if (rank == Py-1){dNy0 = dNy + (Ny-2)%Py;}
+        else {dNy0 = dNy;}
+
+        MPI_Recv(v_bc_final+dNy*rank, dNy0, MPI_DOUBLE, rank, 2, comm_cart, MPI_STATUS_IGNORE);
+      }
+  }
+
+  if (xd == -2){ //right bc
+    MPI_Send(v_bcR, dNy, MPI_DOUBLE, 0, 3, comm_cart);
+  }
+
+  if (cart_rank == 0){
+      for(int rank = 0 ; rank < Py ; rank++){
+
+        if (rank == Py-1){dNy0 = dNy + (Ny-2)%Py;}
+        else {dNy0 = dNy;}
+        MPI_Recv(v_bc_final+(Ny-2)+dNy*rank, dNy0, MPI_DOUBLE, rank+Py*(Px-1), 3, comm_cart, MPI_STATUS_IGNORE);
+      }
+  }
+
+  if (ys == -2){ //Bottom bc
+    MPI_Send(v_bcB, dNx, MPI_DOUBLE, 0, 4, comm_cart);
+  }
+
+  if (cart_rank == 0){
+      for(int rank = 0 ; rank < Py*Px-Py+1 ; rank = rank + Py){
+
+        if (rank == Py*Px-Py){dNx0 = dNx + (Nx-2)%Px;}
+        else {dNx0 = dNx;}
+        MPI_Recv(v_bc_final+2*(Ny-2)+dNx*(rank/Py), dNx0, MPI_DOUBLE, rank, 4, comm_cart, MPI_STATUS_IGNORE);
+      }
+  }
+
+  if (yd == -2){ //top bc
+    MPI_Send(v_bcT, dNx, MPI_DOUBLE, 0, 5, comm_cart);
+  }
+
+  if (cart_rank == 0){
+      for(int rank = Py-1 ; rank < Py*Px ; rank = rank + Py){
+
+        if (rank == Py*Px-1){dNx0 = dNx + (Nx-2)%Px;}
+        else {dNx0 = dNx;}
+        MPI_Recv(v_bc_final+2*(Ny-2)+(Nx-2)+(rank/Py)*dNx, dNx0, MPI_DOUBLE, rank, 5, comm_cart, MPI_STATUS_IGNORE);
+      }
+  }
+  v_bc_out = v_bc_final;
+
+    // for (int j = 0 ; j < dNy ; j++){
+    //     cout <<"rankL = "<< cart_rank<<"  "<< v_bcL[j] << "    ";
+    // }
+    // cout << endl;
+    // for (int j = 0 ; j < dNy ; j++){
+    //     cout <<"rankR = "<< cart_rank<<"  "<< v_bcR[j] << "    ";
+    // }cout << endl;
+    // for (int j = 0 ; j < dNx ; j++){
+    //     cout <<"rankB = "<< cart_rank<<"  "<< v_bcB[j] << "    ";
+    // }cout << endl;
+    // for (int j = 0 ; j < dNx ; j++){
+    //     cout <<"rankT = "<< cart_rank<<"  "<< v_bcT[j] << "    ";
+    // }cout << endl;
+
+  //   if (cart_rank == 0){
+  //   cout << "rank = "<< cart_rank<< ",s bc final" << endl;
+  //   for (int j = 0 ; j < 2*(Nx-2+Ny-2) ; j++){
+  //       cout << v_bc_final[j] << "    ";
+  //   }
+  //   cout << endl;
+  // }
+
+
+
+
+
+
+
+
 
 
  }

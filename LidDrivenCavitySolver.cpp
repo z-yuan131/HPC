@@ -9,10 +9,10 @@ using namespace std;
 int main(int argc, char **argv)
 {
   //initialization
-  int Nx = 30,Ny = 20;
-  double Lx = 1.0,Ly = 1.0,Re = 1000.0;
+  int Nx = 7,Ny = 7;
+  double Lx = 1.0,Ly = 1.0,Re = 100.0;
   double dt = 0.0001/*Re*Lx*Ly/4/(Nx-1)/(Ny-1)*/;
-  double T = 20000*dt;
+  double T = 10000*dt;
 
 
   // Initialize the MPI environment
@@ -44,8 +44,8 @@ int main(int argc, char **argv)
   if (Px == 1 && Py == 1){
     coords[1] = 0;
   }
-  // cout << "cart_rank: " << cart_rank
-  //      << " coords: (" << coords[0] <<","<< coords[1] << ")"<< endl;
+  cout << "cart_rank: " << cart_rank
+       << " coords: (" << coords[0] <<","<< coords[1] << ")"<< endl;
   int TopBC;
   if (coords[1] == Py-1){
     TopBC = 1;
@@ -53,6 +53,7 @@ int main(int argc, char **argv)
   else{
     TopBC = 0;
   }
+
 
   int x_rank_source[1]; int x_rank_dest[1];
   MPI_Cart_shift(comm_cart, 0, 1, x_rank_source, x_rank_dest);
@@ -66,7 +67,7 @@ int main(int argc, char **argv)
   shiyu_solver->SetGridSize(Nx,Ny);
   shiyu_solver->Setmeshsize(Lx, Ly, Nx, Ny);
   shiyu_solver->SetPxPy(Px, Py);
-  shiyu_solver->SetSubdomainGrids(Nx, Ny);
+  shiyu_solver->SetSubdomainGrids(Nx, Ny, coords[0], coords[1]);
   shiyu_solver->SetFinalTime(T);
   shiyu_solver->SetTimeStep(dt);
   shiyu_solver->SetReynoldsNumber(Re);
@@ -90,45 +91,51 @@ int main(int argc, char **argv)
 */
 
 /**/
-  int i = 0, j;
-  double error = 0.0000001;
-  double er;
+  int i = 0,j;
+  double error = 1e-4;
+  double er, precision;
 
   do{
-    j = 0;
     shiyu_solver->CalculateVorticityBC(TopBC);
-
+// j = 0;
     // shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
     shiyu_solver->CalculateInteriorVorticityAtTimet();
 
     shiyu_solver->mpiSendRecive_vorticity(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
     shiyu_solver->TimeAdvance();
+    shiyu_solver->mpiSendRecive_vorticity(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
 
     do{
       shiyu_solver->PoissonSolver();
-      shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart,cart_rank);
-      j++;
       if (Px == 1 && Py == 1){break;}
+
+      shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart,cart_rank);
+      precision = shiyu_solver->calculateprecision(comm_cart);
+
+      // if(cart_rank == 0){
+        // cout <<"precision = " << precision<< endl;
+      // }
+// j++;
       if (i == 0){break;}
       // cout << "j = " << j << endl;
-    }while(j < 1);
+    }while(precision > 1e-6);
 
 
     er = shiyu_solver->Error(comm_cart);
     if (cart_rank == 0){
       cout << "rank" << cart_rank << "\nTime: t = " << i*dt << "\nstep = "<< i
-           << "\nnorm = "<< er << endl << endl;
+           << "\nerror = "<< er << endl << endl;
     }
 
     i++;
   }while(dt*i < T && er > error);
 
 
-    // shiyu_solver->mpiGarther(comm_cart);
+    shiyu_solver->mpiGarther(comm_cart, cart_rank, coords[0], x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0]);
 
-    // if (cart_rank == 0){
-      shiyu_solver->WriteToFile();
-    // }
+    if (cart_rank == 0){
+      shiyu_solver->WriteToFile(cart_rank);
+    }
 /**/
 
   // Finalize the MPI environment.

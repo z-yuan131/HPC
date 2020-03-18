@@ -21,7 +21,7 @@ public:
     void SetReynoldsNumber(double re);
     void Setmeshsize(double lx, double ly, int nx, int ny);
     void SetPxPy(int px, int py);
-    void SetSubdomainGrids(int Nx, int Ny);
+    void SetSubdomainGrids(int Nx, int Ny, int coordsx, int coordsy);
     void Initialise();
 
     // void Initialise_top_boundary(int sizeNx, int sizeNy, double deltay);
@@ -30,13 +30,14 @@ public:
     void BuildMatrixA_B_C();
     void TimeAdvance();
     void PoissonSolver();
+    double calculateprecision(MPI_Comm comm_cart);
     // double Error();
     double Error(MPI_Comm comm_cart);
 
-    void WriteToFile();
+    void WriteToFile(int cart_rank);
     void mpiSendRecive_streamf(int xr, int xd, int yr, int yd, MPI_Comm comm_cart,int cart_rank);
     void mpiSendRecive_vorticity(int xr, int xd, int yr, int yd, MPI_Comm comm_cart);
-    void mpiGarther(MPI_Comm comm_cart);
+    void mpiGarther(MPI_Comm comm_cart, int cart_rank, int coordsx, int xs, int xd, int ys, int yd);
     void test_debug();
 
     void Integrate();
@@ -55,7 +56,7 @@ private:
     double* v_bcT = nullptr;
     double* v_bcB = nullptr;
     double* s_in = nullptr;      //array of interior stream function
-    double* s_in_error = nullptr;
+    double* v_error = nullptr;
     double* s_bcT = nullptr;      //array of boundary stream function
     double* s_bcB = nullptr;
     double* s_bcL = nullptr;      //array of boundary stream function
@@ -64,7 +65,11 @@ private:
     double* A_v = nullptr;
     double* B = nullptr;      //matrix(array) for time advance
     double* C = nullptr;      //matrix(array) for time advance
-    double*s_in_out = nullptr;
+    double* s_in_out = nullptr;
+    double* v_in_out = nullptr;
+    double* v_bc_out = nullptr;
+
+
 
 
     double dt;
