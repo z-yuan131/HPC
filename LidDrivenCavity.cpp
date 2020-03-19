@@ -1,5 +1,4 @@
  #include "LidDrivenCavity.h"
- // #include "PoissonSolver.h"
  using namespace std;
  #include <iostream>
  #include <string>
@@ -8,7 +7,6 @@
  #include <math.h>       /* fabs sqrt*/
  #include <boost/program_options.hpp>
  #include <mpi.h>
- // namespace po = boost::program_options;
 
  // #include "cblas.h"
 
@@ -629,176 +627,141 @@
 
  }
 
-
- void LidDrivenCavity::PoissonSolver(){
-
-      int n = dNx*dNy;    //matrix A size
-      int kl = dNy;    //Lower diagonal bandwidth
-      int ku = dNy;    //Upper diagonal bandwidth
-      int nrhs = 1;     //number of right hand side vectors
-      int info = 1;
-      int ldb = n;      //size of RHS vector
-      int ldab = 1 + 2*kl + ku;    //leading size of matrix AB
-      double* AB = new double[ldab*n]; //for Lapack will overwrite matrix A;
-      int* ipiv = new int[n];
-      double* temp = new double[n];      //for lapack will overwrite v with s;
-
-
-      for (int i = 0 ; i < ldab*n; i++){
-        AB[i] = A[i];
-      }
-
-/*
-      //apply boundary conditions
-      for (int j = 0 ; j < dNy ; j++){
-        for (int i = 0 ; i < dNx ; i++){
-          if (j == 0){         //bottom bc
-            if(i == 0){             //conner
-              v_in[j + dNy*i] += (s_bcL[j]/dx/dx + s_bcB[i]/dy/dy);
-            }
-            else if(i == dNx - 1){  //conner
-              v_in[j + dNy*i] += (s_bcR[j]/dx/dx + s_bcB[i]/dy/dy);
-            }
-            else{
-              v_in[j + dNy*i] += s_bcB[i]/dy/dy;
-            }
-          }
-          else if(j == dNy - 1){      //top bc
-            if(i == 0){      //conner
-              v_in[j + dNy*i] += (s_bcL[j]/dx/dx + s_bcT[i]/dy/dy);
-            }
-            else if(i == dNx - 1){  //conner
-              v_in[j + dNy*i] += (s_bcR[j]/dx/dx + s_bcT[i]/dy/dy);
-            }
-            else{
-              v_in[j + dNy*i] += s_bcT[i]/dy/dy;
-            }
-          }
-          else if(i == 0){    //left bc
-            v_in[j + dNy*i] += s_bcL[j]/dx/dx;
-          }
-          else if(i == dNx - 1){      //right bc
-            v_in[j + dNy*i] += s_bcR[j]/dx/dx;
-          }
-        }
-      }*/
-
-      for (int i = 0 ; i < n ; i++){
-        temp[i] = v_in[i];
-      }
-
-      //apply boundary conditions
-      for (int j = 0 ; j < dNy ; j++){
-        for (int i = 0 ; i < dNx ; i++){
-          if (j == 0){         //bottom bc
-            if (i == 0){
-              temp[j + dNy*i] += (s_bcB[i]/dy/dy + s_bcL[j]/dx/dx);
-            }
-            else if(i == dNx - 1){
-              temp[j + dNy*i] += (s_bcB[i]/dy/dy + s_bcR[j]/dx/dx);
-            }
-            else {
-              temp[j + dNy*i] += s_bcB[i]/dy/dy;
-            }
-
-          }
-          else if(j == dNy - 1){      //top bc
-            if (i == 0){
-              temp[j + dNy*i] += (s_bcT[i]/dy/dy + s_bcL[j]/dx/dx);
-            }
-            else if(i == dNx - 1){
-              temp[j + dNy*i] += (s_bcT[i]/dy/dy + s_bcR[j]/dx/dx);
-            }
-            else {
-              temp[j + dNy*i] += s_bcT[i]/dy/dy;
-            }
-
-          }
-          else if(i == 0){    //left bc
-            temp[j + dNy*i] += s_bcL[j]/dx/dx;
-          }
-          else if(i == dNx - 1){      //right bc
-            temp[j + dNy*i] += s_bcR[j]/dx/dx;
-          }
-        }
-      }
-
-
-        // for (int i = 0 ; i < dNy ; i++){
-        //   cout <<" R_s "<< s_bcR[i] << "  ";
-        // }cout << endl;
-
-
-
-
-
-
-      // double* error_temp = new double[dNx*dNy];
-      // for (int i = 0 ; i < n ; i++){
-      //   error_temp[i] = s_in[i];
-      // }
-      // s_in_error = error_temp;
-
-      // cout << "Poisson solver:AB" << endl;
-      // for (int j = 0 ; j < ldab ; j++){
-      //   for (int i = 0; i < n ; i++){
-      //     cout << AB[j + i*ldab] << "    ";
-      //   }
-      //   cout << "\n";
-      // }
-      // cout << endl;
-      //
-      // cout << "Poisson solver:vorticity apply bc" << endl;
-      // for (int j = 0 ; j < dNy ; j++){
-      //   for (int i = 0; i < dNx ; i++){
-      //     cout << v_in[j + i*dNy] << "    ";
-      //   }
-      //   cout << "\n";
-      // }
-      // cout << "interior vorticity before" << endl;
-      //   for (int i = 0; i < n ; i++){
-      //     cout << temp[i] << "    ";
-      //   }cout << endl;
-
-
-      // s_in_error = s_in;
-
-      F77Name(dgbsv)(n, kl, ku, nrhs, AB, ldab, ipiv, temp, n, info); //temp is input and output
-      // cout << "info = " << info << endl;
-      // cout << "interior vorticity after" << endl;
-      // for (int j = 0 ; j < dNy ; j++){
-      //   for (int i = 0; i < dNx ; i++){
-      //     cout << temp[j + i*dNy] << "    ";
-      //   }
-      //   cout << "\n";
-      // }
-      for (int i = 0 ; i < n ; i++){
-        s_in[i] = temp[i];
-      }
-      // s_in = temp;
-      // for (int j = 0 ; j < dNy ; j++){
-      //   for (int i = 0; i < dNx ; i++){
-      //     cout << s_in[j + i*dNy] << "    ";
-      //   }
-      //   cout << "\n";
-      // }
-
-      // delete[] temp;   //bug
-      // delete[] AB;
-      delete[] ipiv;
-
-
-      // cout << "Poisson solver:streamFunction" << endl;
-      // // cout << "streamFunction" << s_in[10] << endl;
-      // for (int j = 0 ; j < dNy ; j++){
-      //   for (int i = 0; i < dNx ; i++){
-      //     cout << s_in[j + i*dNy] << "    ";
-      //   }
-      //   cout << "\n";
-      // }
-      // cout << endl;
-
-  }
+ //
+ // void LidDrivenCavity::PoissonSolver(){
+ //
+ //      int n = dNx*dNy;    //matrix A size
+ //      int kl = dNy;    //Lower diagonal bandwidth
+ //      int ku = dNy;    //Upper diagonal bandwidth
+ //      int nrhs = 1;     //number of right hand side vectors
+ //      int info = 1;
+ //      int ldb = n;      //size of RHS vector
+ //      int ldab = 1 + 2*kl + ku;    //leading size of matrix AB
+ //      double* AB = new double[ldab*n]; //for Lapack will overwrite matrix A;
+ //      int* ipiv = new int[n];
+ //      double* temp = new double[n];      //for lapack will overwrite v with s;
+ //
+ //
+ //      for (int i = 0 ; i < ldab*n; i++){
+ //        AB[i] = A[i];
+ //      }
+ //
+ //      for (int i = 0 ; i < n ; i++){
+ //        temp[i] = v_in[i];
+ //      }
+ //
+ //      //apply boundary conditions
+ //      for (int j = 0 ; j < dNy ; j++){
+ //        for (int i = 0 ; i < dNx ; i++){
+ //          if (j == 0){         //bottom bc
+ //            if (i == 0){
+ //              temp[j + dNy*i] += (s_bcB[i]/dy/dy + s_bcL[j]/dx/dx);
+ //            }
+ //            else if(i == dNx - 1){
+ //              temp[j + dNy*i] += (s_bcB[i]/dy/dy + s_bcR[j]/dx/dx);
+ //            }
+ //            else {
+ //              temp[j + dNy*i] += s_bcB[i]/dy/dy;
+ //            }
+ //
+ //          }
+ //          else if(j == dNy - 1){      //top bc
+ //            if (i == 0){
+ //              temp[j + dNy*i] += (s_bcT[i]/dy/dy + s_bcL[j]/dx/dx);
+ //            }
+ //            else if(i == dNx - 1){
+ //              temp[j + dNy*i] += (s_bcT[i]/dy/dy + s_bcR[j]/dx/dx);
+ //            }
+ //            else {
+ //              temp[j + dNy*i] += s_bcT[i]/dy/dy;
+ //            }
+ //
+ //          }
+ //          else if(i == 0){    //left bc
+ //            temp[j + dNy*i] += s_bcL[j]/dx/dx;
+ //          }
+ //          else if(i == dNx - 1){      //right bc
+ //            temp[j + dNy*i] += s_bcR[j]/dx/dx;
+ //          }
+ //        }
+ //      }
+ //
+ //
+ //        // for (int i = 0 ; i < dNy ; i++){
+ //        //   cout <<" R_s "<< s_bcR[i] << "  ";
+ //        // }cout << endl;
+ //
+ //
+ //
+ //
+ //
+ //
+ //      // double* error_temp = new double[dNx*dNy];
+ //      // for (int i = 0 ; i < n ; i++){
+ //      //   error_temp[i] = s_in[i];
+ //      // }
+ //      // s_in_error = error_temp;
+ //
+ //      // cout << "Poisson solver:AB" << endl;
+ //      // for (int j = 0 ; j < ldab ; j++){
+ //      //   for (int i = 0; i < n ; i++){
+ //      //     cout << AB[j + i*ldab] << "    ";
+ //      //   }
+ //      //   cout << "\n";
+ //      // }
+ //      // cout << endl;
+ //      //
+ //      // cout << "Poisson solver:vorticity apply bc" << endl;
+ //      // for (int j = 0 ; j < dNy ; j++){
+ //      //   for (int i = 0; i < dNx ; i++){
+ //      //     cout << v_in[j + i*dNy] << "    ";
+ //      //   }
+ //      //   cout << "\n";
+ //      // }
+ //      // cout << "interior vorticity before" << endl;
+ //      //   for (int i = 0; i < n ; i++){
+ //      //     cout << temp[i] << "    ";
+ //      //   }cout << endl;
+ //
+ //
+ //      // s_in_error = s_in;
+ //
+ //      F77Name(dgbsv)(n, kl, ku, nrhs, AB, ldab, ipiv, temp, n, info); //temp is input and output
+ //      // cout << "info = " << info << endl;
+ //      // cout << "interior vorticity after" << endl;
+ //      // for (int j = 0 ; j < dNy ; j++){
+ //      //   for (int i = 0; i < dNx ; i++){
+ //      //     cout << temp[j + i*dNy] << "    ";
+ //      //   }
+ //      //   cout << "\n";
+ //      // }
+ //      for (int i = 0 ; i < n ; i++){
+ //        s_in[i] = temp[i];
+ //      }
+ //      // s_in = temp;
+ //      // for (int j = 0 ; j < dNy ; j++){
+ //      //   for (int i = 0; i < dNx ; i++){
+ //      //     cout << s_in[j + i*dNy] << "    ";
+ //      //   }
+ //      //   cout << "\n";
+ //      // }
+ //
+ //      // delete[] temp;   //bug
+ //      // delete[] AB;
+ //      delete[] ipiv;
+ //
+ //
+ //      // cout << "Poisson solver:streamFunction" << endl;
+ //      // // cout << "streamFunction" << s_in[10] << endl;
+ //      // for (int j = 0 ; j < dNy ; j++){
+ //      //   for (int i = 0; i < dNx ; i++){
+ //      //     cout << s_in[j + i*dNy] << "    ";
+ //      //   }
+ //      //   cout << "\n";
+ //      // }
+ //      // cout << endl;
+ //
+ //  }
 
 
   // double LidDrivenCavity::Error(){
@@ -927,7 +890,7 @@
    // vorticityfile << "x   y   vorticity.\n";
    for (int j = 0 ; j < Ny-2 ; j++){
      for (int i = 0; i < Nx-2 ; i++){
-       vorticityfile << dx*i << "   " << dy*j << "   " << v_in_out[j + i*dNy] << "\n";
+       vorticityfile << dx*(i+1) << "   " << dy*(j+1) << "   " << v_in_out[j + i*dNy] << "\n";
      }
    }
    vorticityfile.close();
@@ -945,7 +908,17 @@
    // vorticityfile << "x   y   vorticity.\n";
    for (int j = 0 ; j < Ny-2 ; j++){
      for (int i = 0; i < Nx-2 ; i++){
-       streamFunctiom << dx*i << "   " << dy*j << "   " << s_in_out[j + i*dNy] << "\n";
+       streamFunctiom << dx*(i+1) << "   " << dy*(j+1) << "   " << s_in_out[j + i*dNy] << "\n";
+     }
+   }
+   streamFunctiom.close();
+
+   ofstream FlowVelocity;
+   FlowVelocity.open ("FlowVelocity.txt");
+   // vorticityfile << "x   y   vorticity.\n";
+   for (int j = 0 ; j < Ny-2 ; j++){
+     for (int i = 0; i < Nx-2 ; i++){
+       FlowVelocity << dx*(i+1) << "   " << dy*(j+1) << "   " << u_x[j + i*dNy] << "   " << u_y[j + i*dNy] << "\n";
      }
    }
    streamFunctiom.close();
@@ -1163,7 +1136,6 @@
    v_in_out = v_in_final;
 
 
-
  //   for (int j = 0 ; j < dNy*dNx ; j++){
  //       cout <<"rank = "<< cart_rank<< s_in[j] << "    ";
  //   }
@@ -1253,14 +1225,25 @@
   //   }
   //   cout << endl;
   // }
+ }
 
+ void LidDrivenCavity::CalculateFlowVelocity(){
+   //according to equation(3):
+   //u_x = (s(j+1) - s(j-1))/2/dy;
+   //u_y = (s(i+1) - s(i-1))/2/dx;
+   int n = dNx*dNy;    //matrix A size
+   int kl = dNy;    //Lower diagonal bandwidth
+   int ku = dNy;    //Upper diagonal bandwidth
+   int klB = 1;    //Lower diagonal bandwidth
+   int kuB = 1;    //Upper diagonal bandwidth
+   int bdab = 1 + kl + ku;   //Number of rows in compressed matrix for Blas
+   double* u = new double[n];
+   double* v = new double[n];
 
+   F77Name(dgbmv)('N', n, n, klB, kuB, 1.0, B , 3, s_in, 1, 0.0, v, 1);
+   F77Name(dgbmv)('N', n, n, kl, ku, 1.0, C , bdab, s_in, 1, 0.0, u, 1);
 
-
-
-
-
-
-
+   u_x = u;
+   u_y = v;
 
  }

@@ -1,11 +1,12 @@
 #pragma once
-// #include "PoissonSolver.h"
 #include <string>
 #include <mpi.h>
 
+// class Poisson;
 
 class LidDrivenCavity
 {
+// friend class Poisson;
 public:
     LidDrivenCavity();    //default constructor;
     ~LidDrivenCavity();   //deconsturct default constructor
@@ -29,7 +30,7 @@ public:
     void CalculateInteriorVorticityAtTimet();
     void BuildMatrixA_B_C();
     void TimeAdvance();
-    void PoissonSolver();
+    // void PoissonSolver();
     double calculateprecision(MPI_Comm comm_cart);
     // double Error();
     double Error(MPI_Comm comm_cart);
@@ -38,11 +39,15 @@ public:
     void mpiSendRecive_streamf(int xr, int xd, int yr, int yd, MPI_Comm comm_cart,int cart_rank);
     void mpiSendRecive_vorticity(int xr, int xd, int yr, int yd, MPI_Comm comm_cart);
     void mpiGarther(MPI_Comm comm_cart, int cart_rank, int coordsx, int xs, int xd, int ys, int yd);
+    void CalculateFlowVelocity();
+
     void test_debug();
 
     void Integrate();
 
-    // friend class PoissonSolver;
+
+    friend class Poisson;
+
 
     // Add any other public functions
     // There should be another function to calculate s_bc sended by another core
@@ -68,6 +73,8 @@ private:
     double* s_in_out = nullptr;
     double* v_in_out = nullptr;
     double* v_bc_out = nullptr;
+    double* u_x = nullptr;    //flow velocity in x direction
+    double* u_y = nullptr;    //flow velocity in y direction
 
 
 
@@ -86,5 +93,4 @@ private:
     double dx;
     double dy;
 
-    // friend class PoissonSolver;
 };
