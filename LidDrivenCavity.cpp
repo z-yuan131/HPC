@@ -123,6 +123,18 @@
    }
  }
 
+ void LidDrivenCavity::Setparameters(){
+     n  = dNx*dNy;
+     kl = dNy;    //Lower diagonal bandwidth
+     ku = dNy;    //Upper diagonal bandwidth
+     nrhs = 1;     //number of right hand side vectors
+     ldab = 1 + 2*kl + ku;   //Number of rows in compressed matrix for Lapack
+     bdab = 1 + kl + ku;   //Number of rows in compressed matrix for Blas
+     ldb = n;      //size of RHS vector
+     klB = 1;    //Lower diagonal bandwidth for B matrix
+     kuB = 1;    //Upper diagonal bandwidth for B matrix
+ }
+
  void LidDrivenCavity::Initialise()
  {
 
@@ -186,36 +198,13 @@
 
  }
 
- /*
- void LidDrivenCavity::Initialise_top_boundary(int sizeNx, int sizeNy, double deltay)
- {
-     double* phi = new double[sizeNx*sizeNy];
-     double* omega = new double[sizeNx*sizeNy];
-     for (int i = 0 ; i < sizeNx ; i++){
-       for (int j = 0 ; j < sizeNy ; j++){
-         phi[j + sizeNx*i] = 0;
-         if (i == 0){
-           omega[j + sizeNx*i] = 1.0/deltay;}
-         else {
-           omega[j + sizeNx*i] = 0;}
-       }
-     }
-     // cout << phi[2] << endl;
-     s = phi;
-     v = omega;
-     delete[] phi;
-     delete[] omega;
- }*/
-
  void LidDrivenCavity::Integrate()
  {
  }
 
 
- void LidDrivenCavity::CalculateVorticityBC(int TopBC)
+ void LidDrivenCavity::CalculateVorticityBC(int TopBC, int xs, int xd, int ys, int yd)
  {//from equations (6)(7)(8)(9)
-    // int dNy = Ny - 2;
-    // int dNx = Nx - 2;
     double* tempL = new double[dNy];
     double* tempR = new double[dNy];
     double* tempB = new double[dNx];
@@ -223,16 +212,36 @@
     for (int j = 0 ; j < dNy ; j++){
       for (int i = 0 ; i < dNx ; i++){
         if (i == 0){                  //left
+          if(xs == -2){
             tempL[j] = (s_bcL[j] - s_in[j + dNy*0])*2.0/dx/dx;
+          }
+          else{
+            tempL[j] = 0;
+          }
         }
         if (i == dNx-1){               //right
+          if(xd == -2){
             tempR[j] = (s_bcR[j] - s_in[j + dNy*(dNx-1)])*2.0/dx/dx;
+          }
+          else{
+            tempR[j] = 0;
+          }
         }
         if (j == 0){                  //bottom
+          if(ys == -2){
             tempB[i] = (s_bcB[i] - s_in[0 + dNy*i])*2.0/dy/dy;
+          }
+          else{
+            tempB[i] = 0;
+          }
         }
         if (j == dNy-1){               //top
+          if(yd == -2){
             tempT[i] = (s_bcT[i] - s_in[dNy-1 + dNy*i])*2.0/dy/dy - TopBC*2.0*1.0/dy; //U = 1.0
+          }
+          else{
+            tempT[i] = 0;
+          }
         }
       }
     }
@@ -260,13 +269,7 @@
 
  void LidDrivenCavity::BuildMatrixA_B_C()    //dNx: points of interior domain.
  {
-     int n = dNx*dNy;    //matrix A size
-     int kl = dNy;    //Lower diagonal bandwidth
-     int ku = dNy;    //Upper diagonal bandwidth
-     int nrhs = 1;     //number of right hand side vectors
-     int ldab = 1 + 2*kl + ku;   //Number of rows in compressed matrix for Lapack
-     int bdab = 1 + kl + ku;   //Number of rows in compressed matrix for Blas
-     int ldb = n;      //size of RHS vector
+
      double* A_vv   = new double[bdab*n];
      double* A_temp = new double[ldab*n]; //for Lapack will rewrite A matrix
      double* B_temp = new double[3*n]; //B matrix uses blas routine
@@ -402,10 +405,7 @@
 
  void LidDrivenCavity::CalculateInteriorVorticityAtTimet()
  {//from equation (10)
-     int kl = dNy;    //Lower diagonal bandwidth
-     int ku = dNy;    //Upper diagonal bandwidth
-     int n = dNx*dNy;    //matrix A size
-     int bdab = 1 + kl + ku;   //Number of rows in compressed matrix for Blas
+
 
      //v = A_v*s;  vorticity = coeff-matrix*streamFunctiom ,matrix is banded
      // cout << "for BLAS" << endl;
@@ -500,15 +500,7 @@
 
 
  void LidDrivenCavity::TimeAdvance(){
-     int n = dNx*dNy;    //matrix A size
-     int kl = dNy;    //Lower diagonal bandwidth
-     int ku = dNy;    //Upper diagonal bandwidth
-     int klB = 1;    //Lower diagonal bandwidth
-     int kuB = 1;    //Upper diagonal bandwidth
-     int nrhs = 1;     //number of right hand side vectors
-     int ldab = 1 + 2*kl + ku;   //Number of rows in compressed matrix for Lapack
-     int bdab = 1 + kl + ku;   //Number of rows in compressed matrix for Blas
-     int ldb = n;      //size of RHS vector
+
      double* term1 = new double[n];
      double* term2 = new double[n];
      double* term3 = new double[n];
@@ -608,7 +600,7 @@
      }
 
      for (int i = 0 ; i < n ; i++){
-       error[i] = -term1[i] + term3[i] - term5[i];
+       error[i] = - dt*term1[i] + dt*term3[i] - dt*term5[i];
      }
      v_error = error;
 
@@ -627,165 +619,9 @@
 
  }
 
- //
- // void LidDrivenCavity::PoissonSolver(){
- //
- //      int n = dNx*dNy;    //matrix A size
- //      int kl = dNy;    //Lower diagonal bandwidth
- //      int ku = dNy;    //Upper diagonal bandwidth
- //      int nrhs = 1;     //number of right hand side vectors
- //      int info = 1;
- //      int ldb = n;      //size of RHS vector
- //      int ldab = 1 + 2*kl + ku;    //leading size of matrix AB
- //      double* AB = new double[ldab*n]; //for Lapack will overwrite matrix A;
- //      int* ipiv = new int[n];
- //      double* temp = new double[n];      //for lapack will overwrite v with s;
- //
- //
- //      for (int i = 0 ; i < ldab*n; i++){
- //        AB[i] = A[i];
- //      }
- //
- //      for (int i = 0 ; i < n ; i++){
- //        temp[i] = v_in[i];
- //      }
- //
- //      //apply boundary conditions
- //      for (int j = 0 ; j < dNy ; j++){
- //        for (int i = 0 ; i < dNx ; i++){
- //          if (j == 0){         //bottom bc
- //            if (i == 0){
- //              temp[j + dNy*i] += (s_bcB[i]/dy/dy + s_bcL[j]/dx/dx);
- //            }
- //            else if(i == dNx - 1){
- //              temp[j + dNy*i] += (s_bcB[i]/dy/dy + s_bcR[j]/dx/dx);
- //            }
- //            else {
- //              temp[j + dNy*i] += s_bcB[i]/dy/dy;
- //            }
- //
- //          }
- //          else if(j == dNy - 1){      //top bc
- //            if (i == 0){
- //              temp[j + dNy*i] += (s_bcT[i]/dy/dy + s_bcL[j]/dx/dx);
- //            }
- //            else if(i == dNx - 1){
- //              temp[j + dNy*i] += (s_bcT[i]/dy/dy + s_bcR[j]/dx/dx);
- //            }
- //            else {
- //              temp[j + dNy*i] += s_bcT[i]/dy/dy;
- //            }
- //
- //          }
- //          else if(i == 0){    //left bc
- //            temp[j + dNy*i] += s_bcL[j]/dx/dx;
- //          }
- //          else if(i == dNx - 1){      //right bc
- //            temp[j + dNy*i] += s_bcR[j]/dx/dx;
- //          }
- //        }
- //      }
- //
- //
- //        // for (int i = 0 ; i < dNy ; i++){
- //        //   cout <<" R_s "<< s_bcR[i] << "  ";
- //        // }cout << endl;
- //
- //
- //
- //
- //
- //
- //      // double* error_temp = new double[dNx*dNy];
- //      // for (int i = 0 ; i < n ; i++){
- //      //   error_temp[i] = s_in[i];
- //      // }
- //      // s_in_error = error_temp;
- //
- //      // cout << "Poisson solver:AB" << endl;
- //      // for (int j = 0 ; j < ldab ; j++){
- //      //   for (int i = 0; i < n ; i++){
- //      //     cout << AB[j + i*ldab] << "    ";
- //      //   }
- //      //   cout << "\n";
- //      // }
- //      // cout << endl;
- //      //
- //      // cout << "Poisson solver:vorticity apply bc" << endl;
- //      // for (int j = 0 ; j < dNy ; j++){
- //      //   for (int i = 0; i < dNx ; i++){
- //      //     cout << v_in[j + i*dNy] << "    ";
- //      //   }
- //      //   cout << "\n";
- //      // }
- //      // cout << "interior vorticity before" << endl;
- //      //   for (int i = 0; i < n ; i++){
- //      //     cout << temp[i] << "    ";
- //      //   }cout << endl;
- //
- //
- //      // s_in_error = s_in;
- //
- //      F77Name(dgbsv)(n, kl, ku, nrhs, AB, ldab, ipiv, temp, n, info); //temp is input and output
- //      // cout << "info = " << info << endl;
- //      // cout << "interior vorticity after" << endl;
- //      // for (int j = 0 ; j < dNy ; j++){
- //      //   for (int i = 0; i < dNx ; i++){
- //      //     cout << temp[j + i*dNy] << "    ";
- //      //   }
- //      //   cout << "\n";
- //      // }
- //      for (int i = 0 ; i < n ; i++){
- //        s_in[i] = temp[i];
- //      }
- //      // s_in = temp;
- //      // for (int j = 0 ; j < dNy ; j++){
- //      //   for (int i = 0; i < dNx ; i++){
- //      //     cout << s_in[j + i*dNy] << "    ";
- //      //   }
- //      //   cout << "\n";
- //      // }
- //
- //      // delete[] temp;   //bug
- //      // delete[] AB;
- //      delete[] ipiv;
- //
- //
- //      // cout << "Poisson solver:streamFunction" << endl;
- //      // // cout << "streamFunction" << s_in[10] << endl;
- //      // for (int j = 0 ; j < dNy ; j++){
- //      //   for (int i = 0; i < dNx ; i++){
- //      //     cout << s_in[j + i*dNy] << "    ";
- //      //   }
- //      //   cout << "\n";
- //      // }
- //      // cout << endl;
- //
- //  }
 
+double LidDrivenCavity::calculateprecision(MPI_Comm comm_cart){
 
-  // double LidDrivenCavity::Error(){
-  //   double er;
-  //   double norm1;
-  //   double norm2;
-  //   for (int  i = 0 ; i < dNx*dNy ; i++){
-  //     norm1 += s_in_error[i]*s_in_error[i];
-  //     norm2 += s_in[i]*s_in[i];
-  //   }
-  //   er = fabs(sqrt(norm1) - sqrt(norm2));
-  //   return er;
-  // }
-
-  double LidDrivenCavity::calculateprecision(MPI_Comm comm_cart){
-    int n = dNx*dNy;    //matrix A size
-    int kl = dNy;    //Lower diagonal bandwidth
-    int ku = dNy;    //Upper diagonal bandwidth
-    int klB = 1;    //Lower diagonal bandwidth
-    int kuB = 1;    //Upper diagonal bandwidth
-    int nrhs = 1;     //number of right hand side vectors
-    int ldab = 1 + 2*kl + ku;   //Number of rows in compressed matrix for Lapack
-    int bdab = 1 + kl + ku;   //Number of rows in compressed matrix for Blas
-    int ldb = n;      //size of RHS vector
     double* term6 = new double[n];
     F77Name(dgbmv)('N', n, n, kl, ku, 1.0, A_v , bdab, s_in, 1, 0.0, term6, 1);
 
@@ -840,24 +676,17 @@
     MPI_Reduce(&precision, &precision_gather, 1, MPI_DOUBLE, MPI_MAX, 0, comm_cart); //get nax error in the domain
     MPI_Bcast(&precision_gather, 1, MPI_DOUBLE, 0, comm_cart); //set this value to all processors
 
-    delete[] term6;
+    delete[] term6,infnorm;
     return precision_gather;
 
   }
 
 
- double LidDrivenCavity::Error(MPI_Comm comm_cart){
+double LidDrivenCavity::Error(MPI_Comm comm_cart){
 
-   // double norm1;
-   // double norm2;
-   int n = dNx*dNy;    //matrix A size
    double er;
    double er_gather;
-   // for (int  i = 0 ; i < dNx*dNy ; i++){
-   //   norm1 += s_in_error[i]*s_in_error[i];
-   //   norm2 += s_in[i]*s_in[i];
-   // }
-   // er = fabs(sqrt(norm1) - sqrt(norm2));
+
 
 
    er = v_error[0];
@@ -871,6 +700,7 @@
    MPI_Reduce(&er, &er_gather, 1, MPI_DOUBLE, MPI_MAX, 0, comm_cart); //get max error in the domain
    MPI_Bcast(&er_gather, 1, MPI_DOUBLE, 0, comm_cart); //set this value to all processors
 
+   delete[] v_error;
    return er_gather;
  }
 
@@ -881,8 +711,7 @@
 
 
  void LidDrivenCavity::WriteToFile(int cart_rank){
-   // int dNx = Nx - 2;
-   // int dNy = Ny - 2;
+
    string rank= to_string(cart_rank);
 
    ofstream vorticityfile;
@@ -923,37 +752,6 @@
    }
    streamFunctiom.close();
  }
-
- /*
-
- void LidDrivenCavity::test_debug(){
-   int dNx = Nx-2;
-   int dNy = Ny-2;
-   int n = dNx*dNy;    //matrix A size
-   int kl = dNy;    //Lower diagonal bandwidth
-   int ku = dNy;    //Upper diagonal bandwidth
-   int nrhs = 1;     //number of right hand side vectors
-   int ldab = 1 + 2*kl + ku;   //Number of rows in compressed matrix for Lapack
-   int bdab = 1 + kl + ku;   //Number of rows in compressed matrix for Blas
-   int ldb = n;      //size of RHS vector
-   cout << "for boundary vorticity" << endl;
-   for (int j = 0 ; j < dNy ; j++){
-     for (int i = 0; i < dNx ; i++){
-       cout << v_bc[j + i*dNy] << "    ";
-     }
-     cout << "\n";
-   }
-   cout << endl;
-   cout << "for interior vorticity" << endl;
-   for (int j = 0 ; j < dNy ; j++){
-     for (int i = 0; i < dNx ; i++){
-       cout << v_in[j + i*dNy] << "    ";
-     }
-     cout << "\n";
-   }
-   cout << endl;
- }
- */
 
 
  void LidDrivenCavity::mpiSendRecive_streamf(int xs, int xd, int ys, int yd, MPI_Comm comm_cart, int cart_rank){
@@ -1025,7 +823,7 @@
 
 
 
-                  delete[] inT_sent,inB_sent,inL_sent,inR_sent;
+    delete[] inT_sent,inB_sent,inL_sent,inR_sent;
 
  }
 
@@ -1034,6 +832,14 @@
    double* inB_sent = new double[dNx];
    double* inL_sent = new double[dNy];
    double* inR_sent = new double[dNy];
+   for (int j = 0 ; j < dNy ; j++){
+     for (int i = 0 ; i < dNx ; i++){
+       if (i == 0){inL_sent[j] = v_in[j + dNy*i];}
+       if (i == dNx-1){inR_sent[j] = v_in[j + dNy*i];}
+       if (j == 0){inB_sent[i] = v_in[j + dNy*i];}
+       if (j == dNy-1){inT_sent[i] = v_in[j + dNy*i];}
+     }
+   }
    // for (int i = 0 ; i < dNx ; i++){
    //   cout <<"B_r"<< v_bcB[i] << "  ";
    // }cout << endl;
@@ -1136,10 +942,10 @@
    v_in_out = v_in_final;
 
 
- //   for (int j = 0 ; j < dNy*dNx ; j++){
- //       cout <<"rank = "<< cart_rank<< s_in[j] << "    ";
- //   }
- //   cout << endl;
+   // for (int j = 0 ; j < dNy*dNx ; j++){
+   //     cout <<"rank = "<< cart_rank<< s_in[j] << "    ";
+   // }
+   // cout << endl;
  //   if (cart_rank == 0){
  //   cout << "rank = "<< cart_rank<< ",s in final" << endl;
  //   for (int j = 0 ; j < (Nx-2)*(Ny-2) ; j++){
@@ -1231,12 +1037,6 @@
    //according to equation(3):
    //u_x = (s(j+1) - s(j-1))/2/dy;
    //u_y = (s(i+1) - s(i-1))/2/dx;
-   int n = dNx*dNy;    //matrix A size
-   int kl = dNy;    //Lower diagonal bandwidth
-   int ku = dNy;    //Upper diagonal bandwidth
-   int klB = 1;    //Lower diagonal bandwidth
-   int kuB = 1;    //Upper diagonal bandwidth
-   int bdab = 1 + kl + ku;   //Number of rows in compressed matrix for Blas
    double* u = new double[n];
    double* v = new double[n];
 

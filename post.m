@@ -13,25 +13,48 @@ Ny = 30;
 % opts.SelectedVariableNames = [1:3]; 
 % opts.DataRange = '2:5';
 % M = readmatrix('example.txt',opts);
-M = readmatrix('streamFunctiom.txt');
-N = readmatrix('vorticity.txt');
+M = load('streamFunctiom.txt');
+N = load('vorticity.txt');
+BC = load('vorticity_bc.txt'); %%left-right-bottom-top
 
 Xs = reshape(M(:,1),[Nx-2,Ny-2]);
 Ys = reshape(M(:,2),[Nx-2,Ny-2]);
 S = reshape(M(:,3),[Nx-2,Ny-2]);
-Xv = reshape(N(:,1),[Nx-2,Ny-2]);
-Yv = reshape(N(:,2),[Nx-2,Ny-2]);
+%Xv = reshape(N(:,1),[Nx-2,Ny-2]);
+%Yv = reshape(N(:,2),[Nx-2,Ny-2]);
 V = reshape(N(:,3),[Nx-2,Ny-2]);
 
+X = zeros(Nx,Ny);
+X(2:Nx-1,2:Ny-1) = Xs(:,:);
+X(2:Nx-1,1) = Xs(:,1);
+X(2:Nx-1,Ny) = Xs(:,Ny-2);
+X(Nx,:) = X(Nx-1,:)+X(2,:);
+
+Y = zeros(Nx,Ny);
+Y(2:Nx-1,2:Ny-1) = Ys(:,:);
+Y(1,2:Ny-1) = Ys(1,:);
+Y(Nx,2:Ny-1) = Ys(1,:);
+Y(:,Ny) = Y(:,2)+Y(:,Ny-1);
+
+S_plot = zeros(Nx,Ny);
+S_plot(2:Nx-1,2:Ny-1) = S(:,:);
+
+ V_plot = zeros(Nx,Ny);
+ V_plot(2:Nx-1,2:Ny-1) = V(:,:);
+ V_plot(1,2:Ny-1) = BC(1:Ny-2);     %left
+ V_plot(Nx,2:Ny-1) = BC((Ny-2)+1:2*(Ny-2));        %right
+ V_plot(2:Nx-1,1) = BC(2*(Ny-2)+1:2*(Ny-2)+(Nx-2));            %bottom
+ V_plot(2:Nx-1,Ny) = BC(2*(Ny-2)+(Nx-2)+1:length(BC));            %top
+
 figure(1)
-contourf(Xs,Ys,S);
+contourf(X,Y,S_plot);
 % contourf(Xs,Ys,S,50, 'edgecolor','none');
 % colormap jet
 colorbar
 
 figure(2)
-% contourf(Xs,Ys,V);
-contourf(Xs,Ys,V,50, 'edgecolor','none');colormap jet
+contourf(Xs,Ys,V);
+%contourf(X,Y,V_plot,50, 'edgecolor','none');colormap jet
 colorbar;
 
 

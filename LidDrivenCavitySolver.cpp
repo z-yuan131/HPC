@@ -30,11 +30,11 @@ int main(int argc, char **argv)
 // cout << Lx <<" "<< Ly <<" "<< Nx <<" "<< Ny <<" "<< Px <<" "<< Py <<" "<< dt <<" "<< T <<" "<<Re <<" "<< endl;
 // --Lx 1.0 --Ly 1.0 --Nx 10 --Ny 10 --Px 1 --Py 1 --dt 0.001 --T 1 --Re 100
 
-Nx = 7;Ny = 7;
-Lx = 1.0;Ly = 1.0;Re = 100.0;
-dt = 0.0001/*Re*Lx*Ly/4/(Nx-1)/(Ny-1)*/;
-T = 50*dt;
-Px = 1;Py = 1;
+// Nx = 15;Ny = 15;
+// Lx = 1.0;Ly = 1.0;Re = 100.0;
+// dt = 0.00001/*Re*Lx*Ly/4/(Nx-1)/(Ny-1)*/;
+// T = 2*dt;
+// Px = 2;Py = 1;
 
 
   // Initialize the MPI environment
@@ -93,8 +93,11 @@ Px = 1;Py = 1;
   shiyu_solver->SetFinalTime(T);
   shiyu_solver->SetTimeStep(dt);
   shiyu_solver->SetReynoldsNumber(Re);
+  shiyu_solver->Setparameters();
   shiyu_solver->Initialise();
   shiyu_solver->BuildMatrixA_B_C();
+
+
   // shiyu_solver->Initialise_top_boundary(Nx, Ny, Ly);
 
   // PoissonSolver* Poisson= new PoissonSolver();
@@ -114,21 +117,22 @@ Px = 1;Py = 1;
 
 /**/
   int i = 0,j;
-  double error = 1e-4;
+  double error = 1e-6;
   double er, precision;
 
   do{
-    shiyu_solver->CalculateVorticityBC(TopBC);
+    shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart,cart_rank);
+    shiyu_solver->CalculateVorticityBC(TopBC,x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0]);
 // j = 0;
-    // shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
     shiyu_solver->CalculateInteriorVorticityAtTimet();
 
     shiyu_solver->mpiSendRecive_vorticity(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
     shiyu_solver->TimeAdvance();
-    shiyu_solver->mpiSendRecive_vorticity(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
+    shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart,cart_rank);
+    // shiyu_solver->mpiSendRecive_vorticity(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
 
+    My_solver->set(shiyu_solver);
     do{
-      My_solver->set(shiyu_solver);
       My_solver->PoissonSolver(shiyu_solver);
       // shiyu_solver->PoissonSolver();
       if (Px == 1 && Py == 1){break;}
@@ -136,13 +140,13 @@ Px = 1;Py = 1;
       shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart,cart_rank);
       precision = shiyu_solver->calculateprecision(comm_cart);
 
-      if(cart_rank == 0){
-        cout <<"precision = " << precision<< endl;
-      }
+      // if(cart_rank == 0){
+        // cout <<"precision = " << precision<< endl;
+      // }
 // j++;
       if (i == 0){break;}
       // cout << "j = " << j << endl;
-    }while(precision > 1e-7);
+    }while(precision > 1e-6);
 
 
     er = shiyu_solver->Error(comm_cart);
@@ -154,7 +158,7 @@ Px = 1;Py = 1;
     i++;
   }while(dt*i < T && er > error);
 
-
+    cout <<"Computation is complicated!"<<endl;
     shiyu_solver->mpiGarther(comm_cart, cart_rank, coords[0], x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0]);
 
     if (cart_rank == 0){

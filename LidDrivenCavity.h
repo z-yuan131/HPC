@@ -22,11 +22,12 @@ public:
     void SetReynoldsNumber(double re);
     void Setmeshsize(double lx, double ly, int nx, int ny);
     void SetPxPy(int px, int py);
+    void Setparameters();
     void SetSubdomainGrids(int Nx, int Ny, int coordsx, int coordsy);
     void Initialise();
 
     // void Initialise_top_boundary(int sizeNx, int sizeNy, double deltay);
-    void CalculateVorticityBC(int TopBC);
+    void CalculateVorticityBC(int TopBC, int xs, int xd, int ys, int yd);
     void CalculateInteriorVorticityAtTimet();
     void BuildMatrixA_B_C();
     void TimeAdvance();
@@ -92,5 +93,14 @@ private:
     double Re;
     double dx;
     double dy;
+    int    n;
+    int    kl;    //Lower diagonal bandwidth
+    int    ku;    //Upper diagonal bandwidth
+    int    nrhs;     //number of right hand side vectors
+    int    ldab;   //Number of rows in compressed matrix for Lapack
+    int    bdab;   //Number of rows in compressed matrix for Blas
+    int    ldb;      //size of RHS vector
+    int    klB;    //Lower diagonal bandwidth
+    int    kuB;    //Upper diagonal bandwidth
 
 };

@@ -29,18 +29,18 @@ void Poisson::set(LidDrivenCavity* Lid){
   s_bcL = Lid->s_bcL;
   s_bcR = Lid->s_bcR;
   A     = Lid->A;
+  n     = Lid->dNx*Lid->dNy;    //matrix A size
+  kl    = Lid->dNy;    //Lower diagonal bandwidth
+  ku    = Lid->dNy;    //Upper diagonal bandwidth
+  nrhs  = 1;     //number of right hand side vectors
+  ldab  = 1 + 2*kl + ku;   //Number of rows in compressed matrix for Lapack
+  info = 1;
 }
 
 
 void Poisson::PoissonSolver(LidDrivenCavity* Lid){
 
-     int n = Lid->dNx*Lid->dNy;    //matrix A size
-     int kl = Lid->dNy;    //Lower diagonal bandwidth
-     int ku = Lid->dNy;    //Upper diagonal bandwidth
-     int nrhs = 1;     //number of right hand side vectors
-     int info = 1;
-     int ldb = n;      //size of RHS vector
-     int ldab = 1 + 2*kl + ku;    //leading size of matrix AB
+
      double* AB = new double[ldab*n]; //for Lapack will overwrite matrix A;
      int* ipiv = new int[n];
      double* temp = new double[n];      //for lapack will overwrite v with s;
@@ -150,8 +150,8 @@ void Poisson::PoissonSolver(LidDrivenCavity* Lid){
      //   cout << "\n";
      // }
 
-     // delete[] temp;   //bug
-     // delete[] AB;
+     delete[] temp;   //bug
+     delete[] AB;
      delete[] ipiv;
 
 

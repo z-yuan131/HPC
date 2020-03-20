@@ -21,5 +21,11 @@ private:
   double* s_bcL = nullptr;      //array of boundary stream function
   double* s_bcR = nullptr;
   double* A = nullptr;      //matrix(array) of linear system Ax = y
+  int     n;    //matrix A size
+  int     kl;    //Lower diagonal bandwidth
+  int     ku;    //Upper diagonal bandwidth
+  int     nrhs;     //number of right hand side vectors
+  int     ldab;   //Number of rows in compressed matrix for Lapack
+  int     info;
 
 };
