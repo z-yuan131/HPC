@@ -117,21 +117,25 @@ int main(int argc, char **argv)
 
 /**/
   int i = 0,j;
-  double error = 1e-6;
+  double error = 1e-4;
   double er, precision;
+
+  My_solver->set(shiyu_solver);
+  
 
   do{
     shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart,cart_rank);
     shiyu_solver->CalculateVorticityBC(TopBC,x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0]);
 // j = 0;
+
     shiyu_solver->CalculateInteriorVorticityAtTimet();
 
+    // shiyu_solver->printin(cart_rank);
     shiyu_solver->mpiSendRecive_vorticity(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
+// shiyu_solver->printbc(cart_rank);
     shiyu_solver->TimeAdvance();
-    shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart,cart_rank);
-    // shiyu_solver->mpiSendRecive_vorticity(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
 
-    My_solver->set(shiyu_solver);
+
     do{
       My_solver->PoissonSolver(shiyu_solver);
       // shiyu_solver->PoissonSolver();
@@ -147,6 +151,8 @@ int main(int argc, char **argv)
       if (i == 0){break;}
       // cout << "j = " << j << endl;
     }while(precision > 1e-6);
+
+
 
 
     er = shiyu_solver->Error(comm_cart);

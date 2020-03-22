@@ -46,6 +46,9 @@ public:
 
     void Integrate();
 
+    void printbc(int cart_rank);
+    void printin(int cart_rank);
+
 
     friend class Poisson;
 

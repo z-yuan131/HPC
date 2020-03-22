@@ -58,26 +58,24 @@ void Poisson::PoissonSolver(LidDrivenCavity* Lid){
      for (int j = 0 ; j < Lid->dNy ; j++){
        for (int i = 0 ; i < Lid->dNx ; i++){
          if (j == 0){         //bottom bc
+           temp[j + Lid->dNy*i] += s_bcB[i]/Lid->dy/Lid->dy;
            if (i == 0){
-             temp[j + Lid->dNy*i] += (s_bcB[i]/Lid->dy/Lid->dy + s_bcL[j]/Lid->dx/Lid->dx);
+             temp[j + Lid->dNy*i] += s_bcL[j]/Lid->dx/Lid->dx;
            }
            else if(i == Lid->dNx - 1){
-             temp[j + Lid->dNy*i] += (s_bcB[i]/Lid->dy/Lid->dy + s_bcR[j]/Lid->dx/Lid->dx);
+             temp[j + Lid->dNy*i] += s_bcR[j]/Lid->dx/Lid->dx;
            }
-           else {
-             temp[j + Lid->dNy*i] += s_bcB[i]/Lid->dy/Lid->dy;
-           }
+
 
          }
          else if(j == Lid->dNy - 1){      //top bc
+           temp[j + Lid->dNy*i] += s_bcT[i]/Lid->dy/Lid->dy;
+
            if (i == 0){
-             temp[j + Lid->dNy*i] += (s_bcT[i]/Lid->dy/Lid->dy + s_bcL[j]/Lid->dx/Lid->dx);
+             temp[j + Lid->dNy*i] += s_bcL[j]/Lid->dx/Lid->dx;
            }
            else if(i == Lid->dNx - 1){
-             temp[j + Lid->dNy*i] += (s_bcT[i]/Lid->dy/Lid->dy + s_bcR[j]/Lid->dx/Lid->dx);
-           }
-           else {
-             temp[j + Lid->dNy*i] += s_bcT[i]/Lid->dy/Lid->dy;
+             temp[j + Lid->dNy*i] += s_bcR[j]/Lid->dx/Lid->dx;
            }
 
          }
