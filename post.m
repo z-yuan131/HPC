@@ -6,8 +6,8 @@ clc
 clear
 close all
 
-Nx = 30;
-Ny = 15;
+Nx = 15;
+Ny = 10;
 % filename = ;
 % opts.Sheet = '2007';
 % opts.SelectedVariableNames = [1:3]; 

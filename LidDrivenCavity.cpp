@@ -183,6 +183,56 @@
      v_bcB = omega_bcB;
      v_bcT = omega_bcT;
 
+
+     //set memory allocation for calculation and initialise them
+     //improve calculation speed
+     double* term1_t = new double[n];   //for equation 11: time advance
+     double* term2_t = new double[n];
+     double* term3_t = new double[n];
+     double* term4_t = new double[n];
+     double* term5_t = new double[n];
+     double* term6_t = new double[n];   //for precision calculation
+     double* v_error_t = new double[n]; //for error calculation
+     double* infnorm_t = new double[n];
+     for (int i = 0 ; i < n ; i++){
+       term1_t[i] = 0;
+       term2_t[i] = 0;
+       term3_t[i] = 0;
+       term4_t[i] = 0;
+       term5_t[i] = 0;
+       term6_t[i] = 0;
+       v_error_t[i] = 0;
+       infnorm_t[i] = 0;
+     }
+     term1 = term1_t;
+     term2 = term2_t;
+     term3 = term3_t;
+     term4 = term4_t;
+     term5 = term5_t;
+     term6 = term6_t;
+     v_error = v_error_t;
+     infnorm = infnorm_t;
+
+
+     double* inT_sent_t = new double[dNx];  //for sending boundaries
+     double* inB_sent_t = new double[dNx];
+     double* inL_sent_t = new double[dNy];
+     double* inR_sent_t = new double[dNy];
+     for (int i = 0 ; i < dNx ; i++){
+       inT_sent_t[i] = 0;           //1-2lines: top-bottom;
+       inB_sent_t[i] = 0;
+     }
+     for (int j = 0 ; j < dNy ; j++){
+       inL_sent_t[j] = 0;           //1-2lines: left-right;
+       inR_sent_t[j] = 0;
+     }
+     inT_sent = inT_sent_t;
+     inB_sent = inB_sent_t;
+     inL_sent = inL_sent_t;
+     inR_sent = inR_sent_t;
+
+
+
      // cout << "interior streamFunction initial" << endl;
      // for (int j = 0 ; j < dNy ; j++){
      //   for (int i = 0; i < dNx ; i++){
@@ -285,7 +335,9 @@
  void LidDrivenCavity::BuildMatrixA_B_C()    //dNx: points of interior domain.
  {
 
-     double* A_vv   = new double[bdab*n];
+     // double* A_vv   = new double[bdab*n];
+     double* A_vv   = new double[(1+ku)*n];
+
      double* A_temp = new double[ldab*n]; //for Lapack will rewrite A matrix
      double* B_temp = new double[3*n]; //B matrix uses blas routine
      double* C_temp = new double[bdab*n]; //C matrix uses blas routine
@@ -314,30 +366,45 @@
            A_temp[j + i*ldab] = 0.0;
          }
 
-         // for blas calculation and matrix C
+         // for blas calculation
+         if (j < 1+ku){
+           if (j == ku){        //for diagonal
+             A_vv[j + i*(1+ku)] = 2.0/dx/dx + 2.0/dy/dy;
+           }
+           else if (j == ku-1 && (i%dNy)){   //for first upper diag
+             A_vv[j + i*(1+ku)] = -1.0/dy/dy;
+           }
+           else if (j == 0 && i >= dNy){   //for second upper diag
+             A_vv[j + i*(1+ku)] = -1.0/dx/dx;
+           }
+           // else if (j == ku+1 && ((i+1)%dNy)){   //for first lower diag
+           //   A_vv[j + i*bdab] = -1.0/dy/dy;
+           // }
+           // else if (j == ku+kl && i < n - dNy){   //for second lower diag
+           //   A_vv[j + i*bdab] = -1.0/dx/dx;
+           // }
+           else {
+             A_vv[j + i*(1+ku)] = 0.0;
+           }
+         }
+         //matrix C
          if (j < bdab){
            if (j == ku){        //for diagonal
-             A_vv[j + i*bdab] = 2.0/dx/dx + 2.0/dy/dy;
              C_temp[j + i*bdab] = 0.0;
            }
            else if (j == ku-1 && (i%dNy)){   //for first upper diag
-             A_vv[j + i*bdab] = -1.0/dy/dy;
              C_temp[j + i*bdab] = 0.0;
            }
            else if (j == 0 && i >= dNy){   //for second upper diag
-             A_vv[j + i*bdab] = -1.0/dx/dx;
              C_temp[j + i*bdab] = 1.0/2.0/dx;
            }
            else if (j == ku+1 && ((i+1)%dNy)){   //for first lower diag
-             A_vv[j + i*bdab] = -1.0/dy/dy;
              C_temp[j + i*bdab] = 0.0;
            }
            else if (j == ku+kl && i < n - dNy){   //for second lower diag
-             A_vv[j + i*bdab] = -1.0/dx/dx;
              C_temp[j + i*bdab] = -1.0/2.0/dx;
            }
            else {
-             A_vv[j + i*bdab] = 0.0;
              C_temp[j + i*bdab] = 0.0;
            }
          }
@@ -455,7 +522,9 @@
      //     cout << s_in[i] << "    ";
      //   }cout << endl;
 
-     F77Name(dgbmv)('N', n, n, kl, ku, 1.0, A_v, bdab, s_in, 1, 0.0, v_in, 1);
+     // F77Name(dgbmv)('N', n, n, kl, ku, 1.0, A_v, bdab, s_in, 1, 0.0, v_in, 1);
+     F77Name(dsbmv)('U', n, ku, 1.0, A_v, 1+ku, s_in, 1, 0.0, v_in, 1);
+
      //
      // cout << "interior vorticity after" << endl;
      // for (int j = 0 ; j < dNy ; j++){
@@ -532,12 +601,7 @@
 
  void LidDrivenCavity::TimeAdvance(){
 
-     double* term1 = new double[n];
-     double* term2 = new double[n];
-     double* term3 = new double[n];
-     double* term4 = new double[n];
-     double* term5 = new double[n];
-     double* error = new double[n];
+
 
 
 
@@ -568,7 +632,9 @@
      //   for (int i = 0; i < n ; i++){
      //     cout << s_in[i] << "    ";
      //   }cout << endl;
-     F77Name(dgbmv)('N', n, n, kl, ku, 1.0, A_v , bdab, v_in, 1, 0.0, term5, 1);
+     // F77Name(dgbmv)('N', n, n, kl, ku, 1.0, A_v , bdab, v_in, 1, 0.0, term5, 1);
+     F77Name(dsbmv)('U', n, ku, 1.0, A_v, 1+ku, v_in, 1, 0.0, term5, 1);
+
      // cout << "interior vorticity after" << endl;
      // for (int j = 0 ; j < dNy ; j++){
      //   for (int i = 0; i < dNx ; i++){
@@ -640,9 +706,8 @@
      }
 
      for (int i = 0 ; i < n ; i++){
-       error[i] = - dt*term1[i] + dt*term3[i] - dt*term5[i]/Re;
+       v_error[i] = - dt*term1[i] + dt*term3[i] - dt*term5[i]/Re;
      }
-     v_error = error;
 
 
 
@@ -655,15 +720,18 @@
      //   cout << "\n";
      // }
 
-     delete[] term1,term2,term3,term4,term5;
+     // delete[] term1,term2,term3,term4,term5;
 
  }
 
 
 double LidDrivenCavity::calculateprecision(MPI_Comm comm_cart){
 
-    double* term6 = new double[n];
-    F77Name(dgbmv)('N', n, n, kl, ku, 1.0, A_v , bdab, s_in, 1, 0.0, term6, 1);
+
+    // F77Name(dgbmv)('N', n, n, kl, ku, 1.0, A_v , bdab, s_in, 1, 0.0, term6, 1);
+    F77Name(dsbmv)('U', n, ku, 1.0, A_v, 1+ku, s_in, 1, 0.0, term6, 1);
+
+
 
     //apply boundary conditions
     for (int j = 0 ; j < dNy ; j++){
@@ -701,7 +769,6 @@ double LidDrivenCavity::calculateprecision(MPI_Comm comm_cart){
     }
 
     double precision;
-    double* infnorm = new double[n];
     for (int i = 0 ; i < n ; i++){
       infnorm[i] = fabs(term6[i]-v_in[i]);
     }
@@ -715,7 +782,7 @@ double LidDrivenCavity::calculateprecision(MPI_Comm comm_cart){
     MPI_Reduce(&precision, &precision_gather, 1, MPI_DOUBLE, MPI_MAX, 0, comm_cart); //get nax error in the domain
     MPI_Bcast(&precision_gather, 1, MPI_DOUBLE, 0, comm_cart); //set this value to all processors
 
-    delete[] term6,infnorm;
+    // delete[] term6,infnorm;
     return precision_gather;
 
   }
@@ -739,7 +806,7 @@ double LidDrivenCavity::Error(MPI_Comm comm_cart){
    MPI_Reduce(&er, &er_gather, 1, MPI_DOUBLE, MPI_MAX, 0, comm_cart); //get max error in the domain
    MPI_Bcast(&er_gather, 1, MPI_DOUBLE, 0, comm_cart); //set this value to all processors
 
-   delete[] v_error;
+   // delete[] v_error;
    return er_gather;
  }
 
@@ -794,10 +861,7 @@ double LidDrivenCavity::Error(MPI_Comm comm_cart){
 
 
  void LidDrivenCavity::mpiSendRecive_streamf(int xs, int xd, int ys, int yd, MPI_Comm comm_cart, int cart_rank){
-   double* inT_sent = new double[dNx];
-   double* inB_sent = new double[dNx];
-   double* inL_sent = new double[dNy];
-   double* inR_sent = new double[dNy];
+
    for (int j = 0 ; j < dNy ; j++){
      for (int i = 0 ; i < dNx ; i++){
        if (i == 0){inL_sent[j] = s_in[j + dNy*i];}
@@ -822,15 +886,12 @@ double LidDrivenCavity::Error(MPI_Comm comm_cart){
 
 
 
-    delete[] inT_sent,inB_sent,inL_sent,inR_sent;
+    // delete[] inT_sent,inB_sent,inL_sent,inR_sent;
 
  }
 
  void LidDrivenCavity::mpiSendRecive_vorticity(int xs, int xd, int ys, int yd, MPI_Comm comm_cart){
-   double* inT_sent = new double[dNx];
-   double* inB_sent = new double[dNx];
-   double* inL_sent = new double[dNy];
-   double* inR_sent = new double[dNy];
+
    for (int j = 0 ; j < dNy ; j++){
      for (int i = 0 ; i < dNx ; i++){
        if (i == 0){inL_sent[j] = v_in[j + dNy*i];}
@@ -884,7 +945,7 @@ double LidDrivenCavity::Error(MPI_Comm comm_cart){
                      // for (int i = 0 ; i < dNy ; i++){
                      //   cout << xs <<"R_r"<< v_bcR[i] << "  ";
                      // }cout << endl;
-    delete[] inT_sent,inB_sent,inL_sent,inR_sent;
+    // delete[] inT_sent,inB_sent,inL_sent,inR_sent;
 
  }
 

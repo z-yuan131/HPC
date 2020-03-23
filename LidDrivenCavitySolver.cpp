@@ -121,7 +121,8 @@ int main(int argc, char **argv)
   double er, precision;
 
   My_solver->set(shiyu_solver);
-  
+  My_solver->LUfact();
+
 
   do{
     shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart,cart_rank);
@@ -171,6 +172,8 @@ int main(int argc, char **argv)
       shiyu_solver->CalculateFlowVelocity();
       shiyu_solver->WriteToFile(cart_rank);
     }
+
+    cout << "write to file SUCCESS!" <<endl;
 /**/
 
   // Finalize the MPI environment.

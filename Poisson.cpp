@@ -20,6 +20,25 @@ extern "C"{
                         const int& nrhs, const double * AB,        //B stands for banded
                         const int& ldab, int * ipiv, double * B,    //ipiv: vector for pivot
                         const int& ldb, int& info);
+
+
+    void F77Name(dpstrf)(const char& UPLO,    const int* 	N,
+                         const double* 	A,    const int* LDA,
+                               int* ipiv,     const int&	RANK,
+                         const double&	TOL,  const double* WORK,
+                               int& info);
+
+    void F77Name(dgbtrf)(const int& M,        const int& N,
+                         const int& KL,       const int&	KU,
+                         const double*	AB,   const int& LDAB,
+                               int* ipiv,           int& INFO);
+
+    void F77Name(dgbtrs)(const char& TRANS,   const int& N,
+                         const int& 	KL,     const int& 	KU,
+                         const int& 	NRHS,   const double* AB,
+                         const int& 	LDAB,         int*	IPIV,
+                         const double*	B,    const int& LDB,
+                               int& 	INFO);
 }
 void Poisson::set(LidDrivenCavity* Lid){
   v_in  = Lid->v_in;
@@ -35,20 +54,42 @@ void Poisson::set(LidDrivenCavity* Lid){
   nrhs  = 1;     //number of right hand side vectors
   ldab  = 1 + 2*kl + ku;   //Number of rows in compressed matrix for Lapack
   info = 1;
+
+  double* AB_t = new double[ldab*n]; //for Lapack will overwrite matrix A;
+  double* temp_t = new double[n];      //for lapack will overwrite v with s;
+
+  for (int i = 0 ; i < ldab*n ; i++){
+    AB_t[i] = 0;
+  }
+  for (int i = 0 ; i < n ; i++){
+    temp_t[i] = 0;
+  }
+  AB = AB_t;
+  temp = temp_t;
+}
+
+void Poisson::LUfact(){
+  for (int i = 0 ; i < ldab*n; i++){
+    AB[i] = A[i];
+  }
+  int* ipiv_t = new int[n];
+  ipiv = ipiv_t;
+  
+
+  F77Name(dgbtrf)(n, n, kl, ku, AB, ldab, ipiv, info);
+
+
+
+
 }
 
 
 void Poisson::PoissonSolver(LidDrivenCavity* Lid){
 
 
-     double* AB = new double[ldab*n]; //for Lapack will overwrite matrix A;
-     int* ipiv = new int[n];
-     double* temp = new double[n];      //for lapack will overwrite v with s;
 
 
-     for (int i = 0 ; i < ldab*n; i++){
-       AB[i] = A[i];
-     }
+
 
      for (int i = 0 ; i < n ; i++){
        temp[i] = v_in[i];
@@ -127,13 +168,13 @@ void Poisson::PoissonSolver(LidDrivenCavity* Lid){
 
 
      // s_in_error = s_in;
-
-     F77Name(dgbsv)(n, kl, ku, nrhs, AB, ldab, ipiv, temp, n, info); //temp is input and output
+     F77Name(dgbtrs)('N', n, kl, ku, nrhs, AB, ldab, ipiv, temp, n, info);//temp is input and output
+     // F77Name(dgbsv)(n, kl, ku, nrhs, AB, ldab, ipiv, temp, n, info); //temp is input and output
      // cout << "info = " << info << endl;
      // cout << "interior vorticity after" << endl;
-     // for (int j = 0 ; j < dNy ; j++){
-     //   for (int i = 0; i < dNx ; i++){
-     //     cout << temp[j + i*dNy] << "    ";
+     // for (int j = 0 ; j < Lid->dNy ; j++){
+     //   for (int i = 0; i < Lid->dNx ; i++){
+     //     cout << temp[j + i*Lid->dNy] << "    ";
      //   }
      //   cout << "\n";
      // }
@@ -148,9 +189,9 @@ void Poisson::PoissonSolver(LidDrivenCavity* Lid){
      //   cout << "\n";
      // }
 
-     delete[] temp;   //bug
-     delete[] AB;
-     delete[] ipiv;
+     // delete[] temp;   //bug
+     // delete[] AB;
+     // delete[] ipiv;
 
 
      // cout << "Poisson solver:streamFunction" << endl;

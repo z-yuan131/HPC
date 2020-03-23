@@ -11,6 +11,7 @@ class Poisson
 public:
   // LidDrivenCavity* Lid;
   void set(LidDrivenCavity* Lid);
+  void LUfact();
   void PoissonSolver(LidDrivenCavity* Lid);
 
 private:
@@ -21,6 +22,10 @@ private:
   double* s_bcL = nullptr;      //array of boundary stream function
   double* s_bcR = nullptr;
   double* A = nullptr;      //matrix(array) of linear system Ax = y
+  double* AB = nullptr;
+  double* temp = nullptr;
+  int   * ipiv = nullptr;
+
   int     n;    //matrix A size
   int     kl;    //Lower diagonal bandwidth
   int     ku;    //Upper diagonal bandwidth

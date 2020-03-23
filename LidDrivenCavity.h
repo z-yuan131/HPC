@@ -65,7 +65,6 @@ private:
     double* v_bcT = nullptr;
     double* v_bcB = nullptr;
     double* s_in = nullptr;      //array of interior stream function
-    double* v_error = nullptr;
     double* s_bcT = nullptr;      //array of boundary stream function
     double* s_bcB = nullptr;
     double* s_bcL = nullptr;      //array of boundary stream function
@@ -79,6 +78,22 @@ private:
     double* v_bc_out = nullptr;
     double* u_x = nullptr;    //flow velocity in x direction
     double* u_y = nullptr;    //flow velocity in y direction
+
+    //calcualtion cache
+    double* term1 = nullptr;
+    double* term2 = nullptr;
+    double* term3 = nullptr;
+    double* term4 = nullptr;
+    double* term5 = nullptr;
+    double* term6 = nullptr;
+    double* v_error = nullptr;
+    double* infnorm = nullptr;
+    double* inT_sent = nullptr;
+    double* inB_sent = nullptr;
+    double* inL_sent = nullptr;
+    double* inR_sent = nullptr;
+
+
 
 
 
