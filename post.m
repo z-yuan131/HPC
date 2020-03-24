@@ -6,8 +6,8 @@ clc
 clear
 close all
 
-Nx = 10;
-Ny = 10;
+Nx = 161;
+Ny = 161;
 % filename = ;
 % opts.Sheet = '2007';
 % opts.SelectedVariableNames = [1:3]; 
@@ -20,8 +20,6 @@ BC = load('vorticity_bc.txt'); %%left-right-bottom-top
 Xs = reshape(M(:,1),[Ny-2,Nx-2]);
 Ys = reshape(M(:,2),[Ny-2,Nx-2]);
 S = reshape(M(:,3),[Ny-2,Nx-2]);
-%Xv = reshape(N(:,1),[Nx-2,Ny-2]);
-%Yv = reshape(N(:,2),[Nx-2,Ny-2]);
 V = reshape(N(:,3),[Ny-2,Nx-2]);
 Xs = Xs;
 Ys = Ys;
@@ -36,7 +34,6 @@ X(Ny,:) = X(Ny-1,:);
 
 Y = zeros(Ny,Nx);
 Y(2:Ny-1,2:Nx-1) = Ys(:,:);
-% Y(1,2:Ny-1) = Ys(1,:);
 Y(Ny,:) = Y(2,:)+Y(Ny-1,:);
 Y(:,Nx) = Y(:,Nx-1);
 Y(:,1) = Y(:,Nx-1);
@@ -59,7 +56,7 @@ colorbar
 title('stream');
 
 figure(2)
-contourf(Xs,Ys,V);
+contourf(Xs,Ys,V,50);
 % contourf(X,Y,V_plot,50, 'edgecolor','none');colormap jet
 colorbar;
 title('vorticity')

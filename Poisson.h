@@ -1,5 +1,5 @@
 #pragma once
-#include "LidDrivenCavity.h"
+#include "LidDrivenCavity.h"      //this class is friend of LidDrivenCavity
 #include <string>
 
 class LidDrivenCavity;
@@ -9,9 +9,8 @@ class Poisson
 
 
 public:
-  // LidDrivenCavity* Lid;
-  void set(LidDrivenCavity* Lid);
-  void LUfact();
+  void set(LidDrivenCavity* Lid);           //get information from class LidDrivenCavity
+  void LUfact();                            //pre LU
   void PoissonSolver(LidDrivenCavity* Lid);
 
 private:

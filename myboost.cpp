@@ -71,7 +71,6 @@ int k = 0;                        //this k is for count how many input do we hav
       if(k != 9)  {       //if values are less than what we need, output this message.
           cout << "Value(s) was(were) not set, please consult --help.\n";
           exit(0);
-          // return 0;
       }
   }
   // Catch any exceptions thrown (which derived from std::exception)

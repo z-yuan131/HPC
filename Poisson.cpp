@@ -7,9 +7,7 @@ using namespace std;
 #include <math.h>       /* fabs sqrt*/
 #include <boost/program_options.hpp>
 #include <mpi.h>
-// namespace po = boost::program_options;
 
-// #include "cblas.h"
 
 #include <cstdlib>
 
@@ -72,14 +70,11 @@ void Poisson::LUfact(){
   for (int i = 0 ; i < ldab*n; i++){
     AB[i] = A[i];
   }
-  int* ipiv_t = new int[n];
+  int* ipiv_t = new int[n];         //preallocate to save memory
   ipiv = ipiv_t;
-  
-
-  F77Name(dgbtrf)(n, n, kl, ku, AB, ldab, ipiv, info);
 
 
-
+  F77Name(dgbtrf)(n, n, kl, ku, AB, ldab, ipiv, info);      //pre LU factorization
 
 }
 
@@ -87,12 +82,8 @@ void Poisson::LUfact(){
 void Poisson::PoissonSolver(LidDrivenCavity* Lid){
 
 
-
-
-
-
      for (int i = 0 ; i < n ; i++){
-       temp[i] = v_in[i];
+       temp[i] = v_in[i];             //for temp is input and output
      }
 
      //apply boundary conditions
@@ -130,78 +121,10 @@ void Poisson::PoissonSolver(LidDrivenCavity* Lid){
      }
 
 
-       // for (int i = 0 ; i < dNy ; i++){
-       //   cout <<" R_s "<< s_bcR[i] << "  ";
-       // }cout << endl;
-
-
-
-
-
-
-     // double* error_temp = new double[dNx*dNy];
-     // for (int i = 0 ; i < n ; i++){
-     //   error_temp[i] = s_in[i];
-     // }
-     // s_in_error = error_temp;
-
-     // cout << "Poisson solver:AB" << endl;
-     // for (int j = 0 ; j < ldab ; j++){
-     //   for (int i = 0; i < n ; i++){
-     //     cout << AB[j + i*ldab] << "    ";
-     //   }
-     //   cout << "\n";
-     // }
-     // cout << endl;
-     //
-     // cout << "Poisson solver:vorticity apply bc" << endl;
-     // for (int j = 0 ; j < dNy ; j++){
-     //   for (int i = 0; i < dNx ; i++){
-     //     cout << v_in[j + i*dNy] << "    ";
-     //   }
-     //   cout << "\n";
-     // }
-     // cout << "interior vorticity before" << endl;
-     //   for (int i = 0; i < n ; i++){
-     //     cout << temp[i] << "    ";
-     //   }cout << endl;
-
-
-     // s_in_error = s_in;
      F77Name(dgbtrs)('N', n, kl, ku, nrhs, AB, ldab, ipiv, temp, n, info);//temp is input and output
-     // F77Name(dgbsv)(n, kl, ku, nrhs, AB, ldab, ipiv, temp, n, info); //temp is input and output
-     // cout << "info = " << info << endl;
-     // cout << "interior vorticity after" << endl;
-     // for (int j = 0 ; j < Lid->dNy ; j++){
-     //   for (int i = 0; i < Lid->dNx ; i++){
-     //     cout << temp[j + i*Lid->dNy] << "    ";
-     //   }
-     //   cout << "\n";
-     // }
+
      for (int i = 0 ; i < n ; i++){
        s_in[i] = temp[i];
      }
-     // s_in = temp;
-     // for (int j = 0 ; j < dNy ; j++){
-     //   for (int i = 0; i < dNx ; i++){
-     //     cout << s_in[j + i*dNy] << "    ";
-     //   }
-     //   cout << "\n";
-     // }
-
-     // delete[] temp;   //bug
-     // delete[] AB;
-     // delete[] ipiv;
-
-
-     // cout << "Poisson solver:streamFunction" << endl;
-     // // cout << "streamFunction" << s_in[10] << endl;
-     // for (int j = 0 ; j < dNy ; j++){
-     //   for (int i = 0; i < dNx ; i++){
-     //     cout << s_in[j + i*dNy] << "    ";
-     //   }
-     //   cout << "\n";
-     // }
-     // cout << endl;
 
  }
