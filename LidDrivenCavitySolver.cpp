@@ -82,7 +82,6 @@ int main(int argc, char **argv)
   MPI_Cart_shift(comm_cart, 1, 1, y_rank_source, y_rank_dest);
   // cout << "cart_rank = "<< cart_rank<<" x_rank_source" << x_rank_source[0]<<endl;
 
-  // LidDrivenCavity LidDrivenCavity();
   LidDrivenCavity*  shiyu_solver= new LidDrivenCavity(Lx,Ly,Nx,Ny,Px,Py,dt,T,Re);
   Poisson* My_solver= new Poisson();
   shiyu_solver->SetDomainSize(Lx,Ly);
@@ -98,24 +97,6 @@ int main(int argc, char **argv)
   shiyu_solver->BuildMatrixA_B_C();
 
 
-  // shiyu_solver->Initialise_top_boundary(Nx, Ny, Ly);
-
-  // PoissonSolver* Poisson= new PoissonSolver();
-
-/*
-  shiyu_solver->CalculateVorticityBC();
-  shiyu_solver->CalculateInteriorVorticityAtTimet();
-  shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
-  shiyu_solver->mpiSendRecive_vorticity(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
-  shiyu_solver->TimeAdvance();
-
-
-  // shiyu_solver->mpiSendRecive(coords[0],coords[1],comm_cart);
-  shiyu_solver->PoissonSolver();
-  shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
-*/
-
-/**/
   int i = 0,j;
   double error = 1e-4;
   double er, precision;
@@ -127,13 +108,10 @@ int main(int argc, char **argv)
   do{
     shiyu_solver->mpiSendRecive_streamf(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart,cart_rank);
     shiyu_solver->CalculateVorticityBC(TopBC,x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0]);
-// j = 0;
 
     shiyu_solver->CalculateInteriorVorticityAtTimet();
 
-    // shiyu_solver->printin(cart_rank);
     shiyu_solver->mpiSendRecive_vorticity(x_rank_source[0],x_rank_dest[0],y_rank_source[0],y_rank_dest[0],comm_cart);
-// shiyu_solver->printbc(cart_rank);
     shiyu_solver->TimeAdvance();
 
 
@@ -148,11 +126,8 @@ int main(int argc, char **argv)
       // if(cart_rank == 0){
         // cout <<"precision = " << precision<< endl;
       // }
-// j++;
       if (i == 0){break;}
-      // cout << "j = " << j << endl;
     }while(precision > 1e-6);
-
 
 
 

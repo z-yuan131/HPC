@@ -120,5 +120,7 @@ private:
     int    ldb;      //size of RHS vector
     int    klB;    //Lower diagonal bandwidth
     int    kuB;    //Upper diagonal bandwidth
+    double precision_gather;
+    
 
 };

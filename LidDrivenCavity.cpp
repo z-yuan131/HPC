@@ -754,9 +754,7 @@ double LidDrivenCavity::calculateprecision(MPI_Comm comm_cart){
           else if(i == dNx - 1){
             term6[j + dNy*i] -= s_bcR[j]/dx/dx;
           }
-          else {
-            term6[j + dNy*i] -= s_bcT[i]/dy/dy;
-          }
+
 
         }
         else if(i == 0){    //left bc
@@ -778,7 +776,6 @@ double LidDrivenCavity::calculateprecision(MPI_Comm comm_cart){
       precision = fmax(precision,infnorm[i]);
     }
 
-    double precision_gather;
     MPI_Reduce(&precision, &precision_gather, 1, MPI_DOUBLE, MPI_MAX, 0, comm_cart); //get nax error in the domain
     MPI_Bcast(&precision_gather, 1, MPI_DOUBLE, 0, comm_cart); //set this value to all processors
 
@@ -825,7 +822,7 @@ double LidDrivenCavity::Error(MPI_Comm comm_cart){
    // vorticityfile << "x   y   vorticity.\n";
    for (int i = 0 ; i < Nx-2 ; i++){
      for (int j = 0; j < Ny-2 ; j++){
-       vorticityfile << dx*(i+1) << "   " << dy*(j+1) << "   " << v_in_out[j + i*dNy] << "\n";
+       vorticityfile << dx*(i+1) << "   " << dy*(j+1) << "   " << v_in_out[j + i*(Ny-2)] << "\n";
      }
    }
    vorticityfile.close();
@@ -843,7 +840,7 @@ double LidDrivenCavity::Error(MPI_Comm comm_cart){
    // vorticityfile << "x   y   vorticity.\n";
    for (int i = 0 ; i < Nx-2 ; i++){
      for (int j = 0; j < Ny-2 ; j++){
-       streamFunctiom << dx*(i+1) << "   " << dy*(j+1) << "   " << s_in_out[j + i*dNy] << "\n";
+       streamFunctiom << dx*(i+1) << "   " << dy*(j+1) << "   " << s_in_out[j + i*(Ny-2)] << "\n";
      }
    }
    streamFunctiom.close();
@@ -853,7 +850,7 @@ double LidDrivenCavity::Error(MPI_Comm comm_cart){
    // vorticityfile << "x   y   vorticity.\n";
    for (int i = 0 ; i < Nx-2 ; i++){
      for (int j = 0; j < Ny-2 ; j++){
-       FlowVelocity << dx*(i+1) << "   " << dy*(j+1) << "   " << u_x[j + i*dNy] << "   " << u_y[j + i*dNy] << "\n";
+       FlowVelocity << dx*(i+1) << "   " << dy*(j+1) << "   " << u_x[j + i*(Ny-2)] << "   " << u_y[j + i*(Ny-2)] << "\n";
      }
    }
    streamFunctiom.close();
@@ -900,8 +897,10 @@ double LidDrivenCavity::Error(MPI_Comm comm_cart){
        if (j == dNy-1){inT_sent[i] = v_in[j + dNy*i];}
      }
    }
+
+
    // for (int i = 0 ; i < dNx ; i++){
-   //   cout <<"B_r"<< v_bcB[i] << "  ";
+   //   cout <<"B_s"<< inB_sent[i] << "  ";
    // }cout << endl;
    // for (int i = 0 ; i < dNx ; i++){
    //   cout <<"T_r"<< v_bcT[i] << "  ";
@@ -980,21 +979,26 @@ double LidDrivenCavity::Error(MPI_Comm comm_cart){
    }
 
    if (cart_rank == 0){
+     int rank = 0;
      for(int i = 0 ; i < Px ; i++){
-       for(int rank = i*Py ; rank < Py+i*Py ; rank++){
+       // for(int rank = i*Py ; rank < Py+i*Py ; rank++){
 
-         if (rank%Py == Py-1){dNy0 = dNy + (Ny-2)%Py;}
-         else {dNy0 = dNy;}
 
-         if (rank >= Px*Py-Py){dNx0 = dNx + (Nx-2)%Px;}
+
+         if (i == Px-1){dNx0 = dNx + (Nx-2)%Px;}
          else {dNx0 = dNx;}
 
          for(int k = 0 ; k < dNx0 ; k++){
-           MPI_Recv(s_in_final+dNy*(rank - (rank/Py)*Py)+k*(Ny-2)+i*dNx*(Ny-2), dNy0, MPI_DOUBLE, rank, k, comm_cart, MPI_STATUS_IGNORE);
-           MPI_Recv(v_in_final+dNy*(rank - (rank/Py)*Py)+k*(Ny-2)+i*dNx*(Ny-2), dNy0, MPI_DOUBLE, rank, k+Nx, comm_cart, MPI_STATUS_IGNORE);
+           for(int rank = i*Py ; rank < Py+i*Py ; rank++){
+             if (rank%Py == Py-1){dNy0 = dNy + (Ny-2)%Py;}
+             else {dNy0 = dNy;}
+
+             MPI_Recv(s_in_final+dNy*(rank%Py)+k*(Ny-2)+i*dNx*(Ny-2), dNy0, MPI_DOUBLE, rank, k, comm_cart, MPI_STATUS_IGNORE);
+             MPI_Recv(v_in_final+dNy*(rank%Py)+k*(Ny-2)+i*dNx*(Ny-2), dNy0, MPI_DOUBLE, rank, k+Nx, comm_cart, MPI_STATUS_IGNORE);
+           }
          }
 
-       }
+       // }
      }
    }
 
@@ -1009,7 +1013,7 @@ double LidDrivenCavity::Error(MPI_Comm comm_cart){
  //   if (cart_rank == 0){
  //   cout << "rank = "<< cart_rank<< ",s in final" << endl;
  //   for (int j = 0 ; j < (Nx-2)*(Ny-2) ; j++){
- //       cout << s_in_final[j] << "    ";
+ //       cout << s_in_out[j] << "    ";
  //   }
  //   cout << endl;
  // }
@@ -1144,7 +1148,7 @@ double LidDrivenCavity::Error(MPI_Comm comm_cart){
    //     cout << s_in[i] << "    ";
    //   }cout << endl;
    //
-   if(cart_rank == 0){
+   if(cart_rank == 1){
    cout << "interior vorticity after" << endl;
    for (int j = 0 ; j < dNy ; j++){
      for (int i = 0; i < dNx ; i++){
